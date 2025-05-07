@@ -446,7 +446,7 @@
                 }
             }
 
-            // --- Worker Class --- (Updated state logic and assignTask, removed auto-harvest logic)
+            // --- Worker Class --- (Removed automatic harvesting logic)
             class Worker {
                 constructor(id) {
                     this.id = id;
@@ -899,9 +899,14 @@
             }
 
             function updateCallWaveButton(){
-                 if(gameOver||gameWon){
-                    callWaveButton.classList.add('disabled');callWaveButton.disabled=true;
-                    callWaveButton.textContent=(gameWon?"You Won!":"Game Over");
+                 if(gameOver){ // Check Game Over first
+                    callWaveButton.textContent = "Restart Game";
+                    callWaveButton.disabled = false; 
+                    callWaveButton.classList.remove('disabled');
+                } else if(gameWon){
+                    callWaveButton.textContent = "You Won!";
+                    callWaveButton.disabled = true; 
+                    callWaveButton.classList.add('disabled');
                 } else if (waveCountdownActive) {
                      let bonus = EARLY_CALL_BONUS_BASE + globalWaveCounter * 3;
                      callWaveButton.textContent = `Start Early! (+${bonus}⚡)`; // Use Energy symbol
@@ -942,6 +947,10 @@
                 // Check for game win condition AFTER potentially spawning last enemy
                  if (currentStageIndex >= STAGES.length && enemies.length === 0 && enemySpawnQueue.length === 0 && !gameWon && !gameOver) {
                     triggerGameWin();
+                }
+                 // Check for wave clear condition to trigger countdown
+                else if (globalWaveCounter > 0 && !waveCountdownActive && enemies.length === 0 && enemySpawnQueue.length === 0) {
+                    updateCallWaveButton(); // Update button state (might trigger countdown)
                 }
             }
             
@@ -994,6 +1003,11 @@
                              worker.state = 'returning'; // Worker is logically available now
                              worker.targetX = WORKER_HOME_POS.x;
                              worker.targetY = WORKER_HOME_POS.y;
+                              // Generate path home
+                             const startTileX = Math.floor(worker.pixelX / TILE_SIZE);
+                             const startTileY = Math.floor(worker.pixelY / TILE_SIZE);
+                             worker.path = getAStarPath(startTileX, startTileY, Math.floor(WORKER_HOME_POS.x/TILE_SIZE), Math.floor(WORKER_HOME_POS.y/TILE_SIZE), null, false);
+                             worker.pathIndex = 0;
                              worker.constructionSiteId = null; 
                              updateUI(); 
                              updateBuildButtons();
