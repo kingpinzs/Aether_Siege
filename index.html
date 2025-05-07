@@ -294,13 +294,13 @@
 
     <script>
         window.onload = function() {
-            // --- DOM Elements ---
+            // --- DOM Elements --- (Remain the same)
             const titleScreen = document.getElementById('titleScreen');
             const startGameButton = document.getElementById('startGameButton');
             const mainGameContainer = document.getElementById('mainGameContainer');
             const canvas = document.getElementById('gameCanvas');
             const ctx = canvas.getContext('2d');
-            const energyDisplay = document.getElementById('energyDisplay'); // Renamed
+            const energyDisplay = document.getElementById('energyDisplay'); 
             const livesDisplay = document.getElementById('livesDisplay');
             const stageDisplay = document.getElementById('stageDisplay'); 
             const waveInStageDisplay = document.getElementById('waveInStageDisplay'); 
@@ -315,15 +315,15 @@
             const buyBasicTowerButton = document.getElementById('buyBasicTower');
             const buySniperTowerButton = document.getElementById('buySniperTower');
             const buySplashTowerButton = document.getElementById('buySplashTower');
-            const buySlowTowerButton = document.getElementById('buySlowTower'); // New
-            const buyBuffTowerButton = document.getElementById('buyBuffTower'); // New
+            const buySlowTowerButton = document.getElementById('buySlowTower'); 
+            const buyBuffTowerButton = document.getElementById('buyBuffTower'); 
             const buyObstacleButton = document.getElementById('buyObstacleButton');
-            const buyReinforcedObstacleButton = document.getElementById('buyReinforcedObstacleButton'); // New
+            const buyReinforcedObstacleButton = document.getElementById('buyReinforcedObstacleButton'); 
             const spawnSoldierButton = document.getElementById('spawnSoldierButton'); 
             const upgradeCastleButton = document.getElementById('upgradeCastleButton'); 
-            const upgradeWorkerButton = document.getElementById('upgradeWorkerButton'); // New
+            const upgradeWorkerButton = document.getElementById('upgradeWorkerButton'); 
             const upgradeCastleCostDisplay = document.getElementById('upgradeCastleCostDisplay'); 
-            const upgradeWorkerCostDisplay = document.getElementById('upgradeWorkerCostDisplay'); // New
+            const upgradeWorkerCostDisplay = document.getElementById('upgradeWorkerCostDisplay'); 
             const messageBox = document.getElementById('messageBox');
             const bottomStatsPanel = document.getElementById('bottomStatsPanel');
             const statsTowerType = document.getElementById('statsTowerType');
@@ -334,17 +334,17 @@
             const statsTowerFireRate = document.getElementById('statsTowerFireRate');
             const statsUpgradeCost = document.getElementById('statsUpgradeCost');
             const statsSellPrice = document.getElementById('statsSellPrice');
-            const buildTabsContainer = document.getElementById('buildTabsContainer'); // Tab container
-            const buildTabContents = document.getElementById('buildControlsContent').children; // Tab content divs
+            const buildTabsContainer = document.getElementById('buildTabsContainer'); 
+            const buildTabContents = document.getElementById('buildControlsContent').children; 
 
-            // --- Game Configuration ---
+            // --- Game Configuration --- (Remain the same)
             const CANVAS_WIDTH = 640; const CANVAS_HEIGHT = 480; const TILE_SIZE = 32;
             const GRID_WIDTH = CANVAS_WIDTH / TILE_SIZE; const GRID_HEIGHT = CANVAS_HEIGHT / TILE_SIZE; 
             const EARLY_CALL_BONUS_BASE = 20; const WAVE_ENEMY_ATTACKS_TOWERS = 5; 
             const MAX_LIVES = 50; const GATE_MAX_HEALTH = 500; 
             const GATE_DAMAGE_PER_HIT = 2; 
             const INITIAL_WORKERS = 1; 
-            const MAX_WORKERS = 3; // Max workers from castle upgrades
+            const MAX_WORKERS = 3; 
             let BUILD_TIME = 2000; 
             let UPGRADE_TIME = 1500; 
             let WORKER_SPEED = 3; 
@@ -425,7 +425,7 @@
              const SOLDIER_TYPES = { 
                 SOLDIER: { name: "Soldier", cost: 75, color: '#f6e05e', speed: 1.5, size: 9, rewardMoney: 50, rewardScore: 100 }
             };
-            const REFUGEE_TYPES = { REFUGEE: { name: "Refugee", color: '#a0aec0', speed: 0.8, size: 7, lifeReward: 1 } };
+            const REFUGEE_TYPES = { REFUGEE: { name: "Refugee", color: '#a0aec0', speed: 0.8, size: 7, lifeReward: 1 } }; // Removed energyReward
 
             // --- A* Pathfinding --- (Remains the same)
             class AStarNode { constructor(x,y,g=0,h=0,parent=null){this.x=x;this.y=y;this.g=g;this.h=h;this.f=g+h;this.parent=parent;} }
@@ -446,7 +446,7 @@
                 }
             }
 
-            // --- Worker Class --- (Updated harvest logic)
+            // --- Worker Class --- (Updated state logic and assignTask, removed auto-harvest logic)
             class Worker {
                 constructor(id) {
                     this.id = id;
@@ -462,6 +462,8 @@
                     this.harvestEndTime = 0; 
                     this.speed = WORKER_SPEED; // Base speed
                     this.buildSpeedFactor = 1; // Base build speed factor
+                    this.path = []; // Path for movement
+                    this.pathIndex = 0;
                 }
 
                 assignTask(constructionSite) {
@@ -471,9 +473,15 @@
                         this.state = 'movingToSite';
                         this.targetX = constructionSite.tileX * TILE_SIZE + TILE_SIZE / 2;
                         this.targetY = constructionSite.tileY * TILE_SIZE + TILE_SIZE / 2;
+                        // Generate path to the site
+                        const startTileX = Math.floor(this.pixelX / TILE_SIZE);
+                        const startTileY = Math.floor(this.pixelY / TILE_SIZE);
+                        this.path = getAStarPath(startTileX, startTileY, constructionSite.tileX, constructionSite.tileY, null, false);
+                        this.pathIndex = 0;
+
                         this.constructionSiteId = constructionSite.id; 
                         constructionSite.workerId = this.id; 
-                        this.targetCrystal = null; // Ensure not targeting crystal
+                        this.targetCrystal = null; 
                         updateUI(); 
                         updateBuildButtons();
                         return true; 
@@ -488,8 +496,14 @@
                         this.targetCrystal = crystal;
                         this.targetX = crystal.x * TILE_SIZE + TILE_SIZE / 2;
                         this.targetY = crystal.y * TILE_SIZE + TILE_SIZE / 2;
-                        this.constructionSiteId = null; // Ensure not tied to construction
-                        crystal.assignedWorkerId = this.id; // Mark crystal as assigned
+                         // Generate path to the crystal
+                        const startTileX = Math.floor(this.pixelX / TILE_SIZE);
+                        const startTileY = Math.floor(this.pixelY / TILE_SIZE);
+                        this.path = getAStarPath(startTileX, startTileY, crystal.x, crystal.y, null, false);
+                        this.pathIndex = 0;
+
+                        this.constructionSiteId = null; 
+                        crystal.assignedWorkerId = this.id; 
                         updateUI();
                         updateBuildButtons(); // Worker is now busy (logically)
                         return true;
@@ -500,76 +514,74 @@
 
 
                 update() {
-                    const currentSpeed = this.speed; // Use worker's current speed
-                    if (this.state === 'movingToSite' || this.state === 'movingToResource') {
-                        const dx = this.targetX - this.pixelX;
-                        const dy = this.targetY - this.pixelY;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-
-                        if (distance < currentSpeed) {
-                            this.pixelX = this.targetX;
-                            this.pixelY = this.targetY;
-                            
+                    const currentSpeed = this.speed; 
+                    if (this.state === 'movingToSite' || this.state === 'movingToResource' || this.state === 'returning') {
+                         if (this.path.length === 0 || this.pathIndex >= this.path.length) {
+                            // Reached destination or path invalid
                             if (this.state === 'movingToSite') {
-                                this.state = 'building'; // Reached construction site
+                                this.state = 'building';
                                 const site = constructionSites.find(s => s.id === this.constructionSiteId);
                                 if (site && !site.endTime) { 
-                                    console.log(`Worker ${this.id} arrived at site ${site.id}, starting timer.`);
-                                    // Apply build speed factor
                                     const buildDuration = (site.isUpgrade ? UPGRADE_TIME : BUILD_TIME) / this.buildSpeedFactor;
                                     site.endTime = Date.now() + buildDuration;
                                 }
-                            } else { // Moving to resource
-                                this.state = 'harvesting'; // Reached crystal
-                                // Apply harvest speed factor
+                            } else if (this.state === 'movingToResource') {
+                                this.state = 'harvesting';
                                 this.harvestEndTime = Date.now() + (HARVEST_TIME / this.buildSpeedFactor); 
-                                 console.log(`Worker ${this.id} arrived at crystal, starting harvest.`);
+                            } else if (this.state === 'returning') {
+                                this.state = 'idle';
+                                this.constructionSiteId = null;
+                                this.targetCrystal = null; 
+                                // Check build queue first when becoming idle
+                                checkBuildQueue(this); 
                             }
+                            this.path = []; // Clear path
+                            this.pathIndex = 0;
+                            return; // Stop further movement this frame
+                        }
+
+                        const targetPixel = this.path[this.pathIndex];
+                        const dx = targetPixel.x - this.pixelX;
+                        const dy = targetPixel.y - this.pixelY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < currentSpeed) {
+                            this.pixelX = targetPixel.x;
+                            this.pixelY = targetPixel.y;
+                            this.pathIndex++;
                         } else {
                             this.pixelX += (dx / distance) * currentSpeed;
                             this.pixelY += (dy / distance) * currentSpeed;
                         }
                     } else if (this.state === 'harvesting') {
                         if (Date.now() >= this.harvestEndTime) {
-                            // Harvest complete
                             console.log(`Worker ${this.id} finished harvesting.`);
-                            
-                            // Find the crystal again to ensure it exists before modifying/removing
-                            const crystalIndex = energyCrystals.findIndex(c => c.x === this.targetCrystal?.x && c.y === this.targetCrystal?.y); // Added null check
+                            const crystalIndex = energyCrystals.findIndex(c => c.x === this.targetCrystal?.x && c.y === this.targetCrystal?.y);
                             if (crystalIndex > -1) {
-                                energyCrystals.splice(crystalIndex, 1); // Remove the crystal
-                                energy += ENERGY_PER_CRYSTAL; // Grant energy
-                                createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); // Harvest effect
+                                energyCrystals.splice(crystalIndex, 1); 
+                                energy += ENERGY_PER_CRYSTAL; 
+                                createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); 
                                 console.log(`Energy increased to ${energy}`);
                             } else {
-                                console.warn("Harvested crystal not found in array? Could have been harvested by another worker simultaneously or removed.");
+                                console.warn("Harvested crystal not found?");
                             }
                             
-                            this.state = 'returning'; // Start returning home
+                            this.state = 'returning'; 
                             this.targetX = WORKER_HOME_POS.x;
                             this.targetY = WORKER_HOME_POS.y;
-                            this.targetCrystal = null; // Clear target crystal reference
-                            updateUI(); // Update energy count
-                            updateBuildButtons(); // Worker is now available (returning)
-                            checkBuildQueue(this); // Check queue immediately
-                        }
-                    } else if (this.state === 'returning') {
-                        const dx = WORKER_HOME_POS.x - this.pixelX;
-                        const dy = WORKER_HOME_POS.y - this.pixelY;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
+                             // Generate path home
+                            const startTileX = Math.floor(this.pixelX / TILE_SIZE);
+                            const startTileY = Math.floor(this.pixelY / TILE_SIZE);
+                            this.path = getAStarPath(startTileX, startTileY, Math.floor(WORKER_HOME_POS.x/TILE_SIZE), Math.floor(WORKER_HOME_POS.y/TILE_SIZE), null, false);
+                            this.pathIndex = 0;
 
-                        if (distance < currentSpeed) {
-                            this.pixelX = WORKER_HOME_POS.x;
-                            this.pixelY = WORKER_HOME_POS.y;
-                            this.state = 'idle'; // Returned home
-                            this.constructionSiteId = null; 
-                            // UI and buttons updated when task finishes/worker set to returning
-                        } else {
-                            this.pixelX += (dx / distance) * currentSpeed;
-                            this.pixelY += (dy / distance) * currentSpeed;
+                            this.targetCrystal = null; 
+                            updateUI(); 
+                            updateBuildButtons(); 
+                            checkBuildQueue(this); 
                         }
-                    }
-                    // No automatic harvesting check when idle
+                    } 
+                    // No automatic task seeking in idle state anymore
                 }
 
                 draw() {
@@ -585,7 +597,7 @@
             }
 
 
-            // --- Enemy Class, Obstacle Class, Tower Class, Projectile Class, Particle System ---
+            // --- Enemy Class --- (Updated move logic for gate interaction)
             class Enemy{constructor(type){this.pixelX=ENEMY_PORTAL_POS.x*TILE_SIZE+TILE_SIZE/2;this.pixelY=ENEMY_PORTAL_POS.y*TILE_SIZE+TILE_SIZE/2;this.type=type;this.health=type.health*(1+(globalWaveCounter*0.15));this.maxHealth=this.health;this.originalSpeed = type.speed; this.speed=type.speed;this.color=type.color;this.size=type.size;this.value=type.value;this.canAttackTowers=type.canAttackTowers||false;this.attackDamage=type.attackDamage||0;this.attackRange=type.attackRange||TILE_SIZE*0.5;this.attackCooldownBase=type.attackCooldownBase||60;this.attackCooldown=0;this.targetTower=null;this.isFlying = type.isFlying || false; this.isStealth = type.isStealth || false; this.isStealthed = false; this.stealthTimer = type.visibleDuration || 0; this.slowTimer = 0; this.path=getAStarPath(ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y, null, this.isFlying);this.pathIndex=0;if(this.path.length===0)console.warn("Enemy spawned with no path!");}findTowerToAttack(){if(!this.canAttackTowers||globalWaveCounter<WAVE_ENEMY_ATTACKS_TOWERS)return null;let closestDist=this.attackRange;let potentialTarget=null;for(const tower of towers){const dist=getDistance({x:this.pixelX,y:this.pixelY},{x:tower.pixelX,y:tower.pixelY})-tower.size/2;if(dist<closestDist){closestDist=dist;potentialTarget=tower;}}return potentialTarget;}
                 updateStealth() { if (!this.type.isStealth) return; this.stealthTimer--; if (this.stealthTimer <= 0) { this.isStealthed = !this.isStealthed; this.stealthTimer = this.isStealthed ? this.type.stealthDuration : this.type.visibleDuration; } }
                 updateSlow() { if (this.slowTimer > 0) { this.slowTimer--; if (this.slowTimer === 0) { this.speed = this.originalSpeed; } } }
@@ -593,25 +605,103 @@
                 move(){
                     this.updateStealth(); this.updateSlow();
                     if(this.attackCooldown>0)this.attackCooldown--;
-                    const currentTileX = Math.floor(this.pixelX / TILE_SIZE); const currentTileY = Math.floor(this.pixelY / TILE_SIZE);
+                    
+                    const currentTileX = Math.floor(this.pixelX / TILE_SIZE);
+                    const currentTileY = Math.floor(this.pixelY / TILE_SIZE);
                     const gateCenter = {x: HOME_PORTAL_POS.x * TILE_SIZE + TILE_SIZE/2, y: HOME_PORTAL_POS.y * TILE_SIZE + TILE_SIZE/2};
                     const distToGate = getDistance({x: this.pixelX, y: this.pixelY}, gateCenter);
-                    if (this.canAttackTowers && gateHealth > 0 && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS && distToGate <= this.attackRange + TILE_SIZE * 0.5) { if (this.attackCooldown <= 0) { gateHealth -= this.attackDamage; this.takeDamage(GATE_DAMAGE_PER_HIT); this.attackCooldown = this.attackCooldownBase; createImpactEffect(gateCenter.x, gateCenter.y,'white',4,6); if (gateHealth <= 0) { gateHealth = 0; showMessage("The Gate has fallen!","error",3000); createImpactEffect(gateCenter.x, gateCenter.y,'grey',20,30); } updateUI();} if (this.health <= 0) return; return; }
-                    if(this.canAttackTowers && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS){ if(!this.targetTower || this.targetTower.health <= 0) this.targetTower = this.findTowerToAttack(); if(this.targetTower && this.attackCooldown <= 0){ const distToTargetTower = getDistance({x:this.pixelX, y:this.pixelY}, {x:this.targetTower.pixelX, y:this.targetTower.pixelY}); if(distToTargetTower <= this.attackRange + this.targetTower.size / 2){ this.targetTower.takeDamage(this.attackDamage); this.attackCooldown = this.attackCooldownBase; createImpactEffect(this.targetTower.pixelX, this.targetTower.pixelY, 'orange', 3, 5); return; } else { this.targetTower = null; } } }
-                    if(this.path.length === 0 || this.pathIndex >= this.path.length){ if(currentTileX === HOME_PORTAL_POS.x && currentTileY === HOME_PORTAL_POS.y) this.reachHome(); else { this.path = getAStarPath(currentTileX, currentTileY, HOME_PORTAL_POS.x, HOME_PORTAL_POS.y, null, this.isFlying); this.pathIndex = 0; } return; }
-                    const targetPixel = this.path[this.pathIndex]; const dx = targetPixel.x - this.pixelX; const dy = targetPixel.y - this.pixelY; const distance = Math.sqrt(dx * dx + dy * dy);
-                    let nextX = this.pixelX; let nextY = this.pixelY; if (distance > 0) { nextX += (dx / distance) * this.speed; nextY += (dy / distance) * this.speed; }
-                    const nextTileX = Math.floor(nextX / TILE_SIZE); const nextTileY = Math.floor(nextY / TILE_SIZE);
-                    if (gateHealth > 0 && nextTileX === HOME_PORTAL_POS.x && nextTileY === HOME_PORTAL_POS.y) { if (!this.canAttackTowers) { this.reachHome(); return; } return; }
-                    if(distance < this.speed){ this.pixelX = targetPixel.x; this.pixelY = targetPixel.y; this.pathIndex++; if(this.pathIndex >= this.path.length){ const finalTileX = Math.floor(this.pixelX / TILE_SIZE); const finalTileY = Math.floor(this.pixelY / TILE_SIZE); if(finalTileX === HOME_PORTAL_POS.x && finalTileY === HOME_PORTAL_POS.y) this.reachHome(); } } else { this.pixelX = nextX; this.pixelY = nextY; }
+                    
+                    // --- Gate Interaction Logic ---
+                    if (this.canAttackTowers && gateHealth > 0 && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS && distToGate <= this.attackRange + TILE_SIZE * 0.5) {
+                         if (this.attackCooldown <= 0) {
+                             gateHealth -= this.attackDamage; 
+                             this.takeDamage(GATE_DAMAGE_PER_HIT); // Enemy takes damage from gate
+                             this.attackCooldown = this.attackCooldownBase;
+                             createImpactEffect(gateCenter.x, gateCenter.y,'white',4,6); 
+                             if (gateHealth <= 0) { 
+                                 gateHealth = 0; 
+                                 showMessage("The Gate has fallen!","error",3000); 
+                                 createImpactEffect(gateCenter.x, gateCenter.y,'grey',20,30); 
+                             }
+                             updateUI(); // Update gate health display immediately
+                         } 
+                         // Check if enemy died from gate damage before returning
+                         if (this.health <= 0) return; 
+                         return; // Stop moving if attacking gate
+                    }
+
+                    // --- Tower Attack Logic --- (Only if not attacking gate)
+                    if(this.canAttackTowers && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS){
+                        if(!this.targetTower || this.targetTower.health <= 0) this.targetTower = this.findTowerToAttack();
+                        if(this.targetTower && this.attackCooldown <= 0){
+                            const distToTargetTower = getDistance({x:this.pixelX, y:this.pixelY}, {x:this.targetTower.pixelX, y:this.targetTower.pixelY});
+                            if(distToTargetTower <= this.attackRange + this.targetTower.size / 2){
+                                this.targetTower.takeDamage(this.attackDamage);
+                                this.attackCooldown = this.attackCooldownBase;
+                                createImpactEffect(this.targetTower.pixelX, this.targetTower.pixelY, 'orange', 3, 5);
+                                return; // Stop moving if attacking tower
+                            } else {
+                                this.targetTower = null; // Target out of range
+                            }
+                        }
+                    }
+
+                    // --- Pathing Logic --- (Only if not attacking gate or tower)
+                    if(this.path.length === 0 || this.pathIndex >= this.path.length){
+                        if(currentTileX === HOME_PORTAL_POS.x && currentTileY === HOME_PORTAL_POS.y) this.reachHome(); // Already at destination
+                        else { // Attempt re-path if stuck
+                            this.path = getAStarPath(currentTileX, currentTileY, HOME_PORTAL_POS.x, HOME_PORTAL_POS.y, null, this.isFlying); 
+                            this.pathIndex = 0; 
+                        }
+                        return;
+                    }
+
+                    const targetPixel = this.path[this.pathIndex];
+                    const dx = targetPixel.x - this.pixelX; 
+                    const dy = targetPixel.y - this.pixelY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Calculate next position to check for gate collision
+                    let nextX = this.pixelX;
+                    let nextY = this.pixelY;
+                    if (distance > 0) { // Avoid division by zero if already at target
+                        nextX += (dx / distance) * this.speed;
+                        nextY += (dy / distance) * this.speed;
+                    }
+                    const nextTileX = Math.floor(nextX / TILE_SIZE);
+                    const nextTileY = Math.floor(nextY / TILE_SIZE);
+
+                    // Check if the *next* move would land on the gate tile while gate is up
+                    if (gateHealth > 0 && nextTileX === HOME_PORTAL_POS.x && nextTileY === HOME_PORTAL_POS.y) {
+                        // Enemy is about to hit the gate. If it can't attack, remove it.
+                        if (!this.canAttackTowers) {
+                            this.reachHome(); // Remove non-attacking enemy at the gate
+                            return;
+                        }
+                        // Attacking enemies will be handled by the gate attack logic next frame if they stop here
+                        // We stop movement here to prevent visually passing the gate.
+                        return; 
+                    }
+
+                    // --- Normal Movement Execution ---
+                    if(distance < this.speed){
+                        this.pixelX = targetPixel.x; this.pixelY = targetPixel.y; this.pathIndex++;
+                        if(this.pathIndex >= this.path.length){ // Check if reached end after moving
+                            const finalTileX = Math.floor(this.pixelX / TILE_SIZE);
+                            const finalTileY = Math.floor(this.pixelY / TILE_SIZE);
+                            if(finalTileX === HOME_PORTAL_POS.x && finalTileY === HOME_PORTAL_POS.y) this.reachHome();
+                        }
+                    } else {
+                        this.pixelX = nextX; this.pixelY = nextY;
+                    }
                 }
                 reachHome(){if(gateHealth<=0){lives--;score=Math.max(0,score-25);createImpactEffect(this.pixelX,this.pixelY,'rgba(255,0,0,0.7)',10,20);updateUI();if(lives<=0)triggerGameOver("Home Portal Overrun!");}else{createImpactEffect(this.pixelX,this.pixelY,'rgba(200,200,200,0.5)',5,8);}this.remove();}
                 draw(){ ctx.globalAlpha = this.isStealthed ? 0.3 : 1.0; ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();if(this.isFlying){/* Optional: Add wings or shadow */ ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(this.pixelX, this.pixelY + this.size * 1.2, this.size * 0.8, this.size * 0.3, 0, 0, Math.PI * 2); ctx.fill();} ctx.globalAlpha = 1.0; if(this.health<this.maxHealth){const healthBarWidth=this.size*2;const healthBarHeight=5;ctx.fillStyle='red';ctx.fillRect(this.pixelX-this.size,this.pixelY-this.size-10,healthBarWidth,healthBarHeight);ctx.fillStyle='green';ctx.fillRect(this.pixelX-this.size,this.pixelY-this.size-10,healthBarWidth*(this.health/this.maxHealth),healthBarHeight);} if (this.slowTimer > 0) { ctx.fillStyle = 'rgba(0, 150, 255, 0.5)'; ctx.beginPath(); ctx.arc(this.pixelX, this.pixelY, this.size + 2, 0, Math.PI * 2); ctx.fill(); } } // Draw slow effect
-                takeDamage(amount){ if (this.health <= 0) return; this.health-=amount;createImpactEffect(this.pixelX,this.pixelY,this.color,5,10);if(this.health<=0){energy+=this.value;score+=this.value*2;updateUI();this.remove();createImpactEffect(this.pixelX,this.pixelY,'gold',8,15);}} // Gain Energy on kill
+                takeDamage(amount){ if (this.health <= 0) return; /* Prevent taking damage after death */ this.health-=amount;createImpactEffect(this.pixelX,this.pixelY,this.color,5,10);if(this.health<=0){energy+=this.value;score+=this.value*2;updateUI();this.remove();createImpactEffect(this.pixelX,this.pixelY,'gold',8,15);}} // Gain Energy on kill
                 remove(){enemies=enemies.filter(e=>e!==this);enemiesOnBoard=Math.max(0,enemiesOnBoard-1);updateCallWaveButton();}}
             
             class Soldier {constructor(type){this.pixelX=(HOME_PORTAL_POS.x-1)*TILE_SIZE+TILE_SIZE/2;this.pixelY=HOME_PORTAL_POS.y*TILE_SIZE+TILE_SIZE/2;this.type=type;this.speed=type.speed;this.color=type.color;this.size=type.size;this.rewardMoney=type.rewardMoney;this.rewardScore=type.rewardScore;this.path=getAStarPath(HOME_PORTAL_POS.x-1,HOME_PORTAL_POS.y,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,null,false);this.pathIndex=0;if(this.path.length===0)console.warn("Soldier spawned with no path!");}move(){if(this.path.length===0||this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===ENEMY_PORTAL_POS.x&&currentTileY===ENEMY_PORTAL_POS.y)this.reachEnemyPortal();else{this.path=getAStarPath(currentTileX,currentTileY,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,null,false);this.pathIndex=0;if(this.path.length===0)this.remove();}return;}const targetPixel=this.path[this.pathIndex];const dx=targetPixel.x-this.pixelX;const dy=targetPixel.y-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed){this.pixelX=targetPixel.x;this.pixelY=targetPixel.y;this.pathIndex++;if(this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===ENEMY_PORTAL_POS.x&&currentTileY===ENEMY_PORTAL_POS.y)this.reachEnemyPortal();}}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}reachEnemyPortal(){energy+=this.rewardMoney;score+=this.rewardScore;createImpactEffect(this.pixelX,this.pixelY,this.color,10,15);updateUI();this.remove();}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.moveTo(this.pixelX+this.size,this.pixelY);ctx.lineTo(this.pixelX-this.size/2,this.pixelY-this.size/2);ctx.lineTo(this.pixelX-this.size/2,this.pixelY+this.size/2);ctx.closePath();ctx.fill();ctx.strokeStyle='black';ctx.lineWidth=1;ctx.stroke();}remove(){soldiers=soldiers.filter(s=>s!==this);}}
-            class Refugee {constructor(type){const edge=Math.random()<0.5?'top':'bottom';this.pixelX=Math.floor(Math.random()*GRID_WIDTH)*TILE_SIZE+TILE_SIZE/2;this.pixelY=(edge==='top'?0:CANVAS_HEIGHT-1)+(edge==='top'?TILE_SIZE/2:-TILE_SIZE/2);this.type=type;this.speed=type.speed;this.color=type.color;this.size=type.size;this.lifeReward=type.lifeReward;this.path=getAStarPath(Math.floor(this.pixelX/TILE_SIZE),Math.floor(this.pixelY/TILE_SIZE),HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null,true);this.pathIndex=0;if(this.path.length===0)console.warn("Refugee spawned with no path!");}move(){if(this.path.length===0||this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y){this.reachHomePortal();}else{this.path=getAStarPath(currentTileX,currentTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null,true);this.pathIndex=0;if(this.path.length===0)this.remove();}return;}const targetPixel=this.path[this.pathIndex];const dx=targetPixel.x-this.pixelX;const dy=targetPixel.y-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed){this.pixelX=targetPixel.x;this.pixelY=targetPixel.y;this.pathIndex++;if(this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y)this.reachHomePortal();}}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}reachHomePortal(){lives=Math.min(MAX_LIVES,lives+this.lifeReward);score+=25;createImpactEffect(this.pixelX,this.pixelY,this.color,10,15);updateUI();this.remove();}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.stroke();}remove(){refugees=refugees.filter(r=>r!==this);}}
+            class Refugee {constructor(type){const edge=Math.random()<0.5?'top':'bottom';this.pixelX=Math.floor(Math.random()*GRID_WIDTH)*TILE_SIZE+TILE_SIZE/2;this.pixelY=(edge==='top'?0:CANVAS_HEIGHT-1)+(edge==='top'?TILE_SIZE/2:-TILE_SIZE/2);this.type=type;this.speed=type.speed;this.color=type.color;this.size=type.size;this.lifeReward=type.lifeReward; this.energyReward = type.energyReward || 0; this.path=getAStarPath(Math.floor(this.pixelX/TILE_SIZE),Math.floor(this.pixelY/TILE_SIZE),HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null, false);this.pathIndex=0;if(this.path.length===0)console.warn("Refugee spawned with no path!");}move(){if(this.path.length===0||this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y){this.reachHomePortal();}else{this.path=getAStarPath(currentTileX,currentTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null, false);this.pathIndex=0;if(this.path.length===0)this.remove();}return;}const targetPixel=this.path[this.pathIndex];const dx=targetPixel.x-this.pixelX;const dy=targetPixel.y-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed){this.pixelX=targetPixel.x;this.pixelY=targetPixel.y;this.pathIndex++;if(this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y)this.reachHomePortal();}}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}reachHomePortal(){lives = Math.min(MAX_LIVES, lives + this.lifeReward); score+=25;createImpactEffect(this.pixelX,this.pixelY,this.color,10,15);updateUI();this.remove();}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.stroke();}remove(){refugees=refugees.filter(r=>r!==this);}}
             class Obstacle{constructor(tileX,tileY,type){this.tileX=tileX;this.tileY=tileY;this.x=tileX*TILE_SIZE+TILE_SIZE/2;this.y=tileY*TILE_SIZE+TILE_SIZE/2;this.type=type;this.size=type.size;this.color=type.color;}draw(){ctx.fillStyle=this.color;ctx.fillRect(this.tileX*TILE_SIZE,this.tileY*TILE_SIZE,this.size,this.size);ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.strokeRect(this.tileX*TILE_SIZE,this.tileY*TILE_SIZE,this.size,this.size);}}
             class Tower{constructor(pixelX,pixelY,towerTypeData){this.pixelX=pixelX;this.pixelY=pixelY;this.tileX=Math.floor(pixelX/TILE_SIZE);this.tileY=Math.floor(pixelY/TILE_SIZE);this.towerTypeData=towerTypeData;this.level=0;this.size=towerTypeData.size;this.color=towerTypeData.color;this.projectileColor=towerTypeData.projectileColor;this.projectileSpeed=towerTypeData.projectileSpeed;this.projectileSize=towerTypeData.projectileSize;this.fireCooldown=0;this.target=null;this.totalInvested=towerTypeData.cost;this.baseHealth=towerTypeData.baseHealth;this.canTargetFlying = towerTypeData.canTargetFlying === undefined ? true : towerTypeData.canTargetFlying; // Default true
                 this.canSeeStealth = towerTypeData.canSeeStealth === undefined ? false : towerTypeData.canSeeStealth; // Default false
@@ -625,15 +715,38 @@
                 this.activeBuffs = {}; // Store buffs received from other towers {buffType: {amount:X, sourceId: Y}}
                 this.updateStatsToLevel();}updateStatsToLevel(){const levelStats=this.towerTypeData.levels[this.level];this.damage=levelStats.damage;this.range=levelStats.range;this.fireRate=levelStats.fireRate;this.upgradeCost=levelStats.upgradeCost;this.maxHealth=this.baseHealth+(levelStats.healthBonus||0);if(this.health===undefined||this.level===0){this.health=this.maxHealth;}else{this.health=Math.min(this.maxHealth,this.health+(levelStats.healthBonus-(this.towerTypeData.levels[this.level-1]?.healthBonus||0)));this.health=Math.min(this.maxHealth,this.health);}if(this.towerTypeData.name==="Splash"){this.splashRadius=levelStats.splashRadius||this.towerTypeData.splashRadius;this.splashDamageFactor=levelStats.splashDamageFactor||this.towerTypeData.splashDamageFactor;}if(this.isAura){this.buffRadius=levelStats.range||this.buffRadius;this.buffAmount=levelStats.buffAmount||this.buffAmount;}}getSellValue(){return Math.floor(this.totalInvested*0.7);}
                 upgrade(){
+                    // Find an idle or returning worker
                     const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
+                    
+                    // Check affordability and level first
                     if(this.level >= this.towerTypeData.levels.length - 1){ showMessage("Max level!", "info"); return; }
-                    if(energy < this.upgradeCost){ showMessage("Not enough Energy!", "error"); return; } 
-                    if (constructionSites.some(site => site.isUpgrade && site.itemData === this) || buildQueue.some(task => task.type === 'upgrade' && task.itemData === this)) { showMessage("Upgrade already in progress/queued!", "info"); return; }
-                    energy -= this.upgradeCost; 
-                    buildQueue.push({ type: 'upgrade', itemData: this, tileX: this.tileX, tileY: this.tileY });
-                    updateUI(); updateBuildButtons(); showMessage("Upgrade Queued!", "info");
-                    if (availableWorker) { checkBuildQueue(availableWorker); }
-                    selectedTower = null; updateBottomStatsPanel();
+                    if(energy < this.upgradeCost){ showMessage("Not enough Energy!", "error"); return; } // Use energy
+                    if (constructionSites.some(site => site.isUpgrade && site.itemData === this) || buildQueue.some(task => task.type === 'upgrade' && task.itemData === this)) { 
+                        showMessage("Upgrade already in progress/queued!", "info"); 
+                        return; 
+                    }
+
+                    energy -= this.upgradeCost; // Use energy
+                    
+                    // Add to build queue
+                    buildQueue.push({ 
+                         type: 'upgrade', 
+                         itemData: this, // Reference the tower
+                         tileX: this.tileX, 
+                         tileY: this.tileY 
+                     });
+
+                    updateUI();
+                    updateBuildButtons();
+                    showMessage("Upgrade Queued!", "info");
+                 
+                    // Attempt to assign a worker immediately if one is available
+                    if (availableWorker) {
+                        checkBuildQueue(availableWorker); // This will pull the task we just added
+                    }
+
+                    selectedTower = null; // Deselect while queued/upgrading
+                    updateBottomStatsPanel();
                 }
                 takeDamage(amount){this.health-=amount;createImpactEffect(this.pixelX,this.pixelY,'rgba(255,165,0,0.8)',3,4);if(this.health<=0)this.destroy();updateBottomStatsPanel();}
                 destroy(){ createImpactEffect(this.pixelX,this.pixelY,'grey',10,20); towers.forEach(t => t.removeBuffSource(this)); towers=towers.filter(t=>t!==this); if(selectedTower===this){selectedTower=null;updateBottomStatsPanel();} } // Remove buffs on destroy
@@ -722,7 +835,8 @@
                     
                     currentStageIndex++;
                     if (currentStageIndex >= STAGES.length) {
-                        // Game potentially won, but wait for enemies to clear
+                         // Game potentially won, but wait for enemies to clear
+                         // The actual win check is now in handleEnemySpawning
                     } else {
                         currentWaveInStage = 1; // Start next stage
                         gateHealth = Math.min(GATE_MAX_HEALTH, gateHealth + GATE_MAX_HEALTH * 0.25); 
@@ -800,7 +914,7 @@
                      callWaveButton.textContent = `Next Wave Ready`; // Or show countdown text
                      callWaveButton.disabled = true; // Disable until countdown starts or is clicked early
                      callWaveButton.classList.add('disabled');
-                     // Start countdown automatically if not already active
+                     // Start countdown automatically if not already active AND game not won
                      if (!waveCountdownActive && currentStageIndex < STAGES.length) { 
                          startWaveCountdown();
                      }
@@ -825,7 +939,7 @@
                         }
                     }
                 }
-                // Check for game win condition moved to handleEnemySpawning completion check
+                // Check for game win condition AFTER potentially spawning last enemy
                  if (currentStageIndex >= STAGES.length && enemies.length === 0 && enemySpawnQueue.length === 0 && !gameWon && !gameOver) {
                     triggerGameWin();
                 }
@@ -854,7 +968,8 @@
                              if (actualTower) {
                                  // Finalize upgrade stats
                                  const oldMaxHealth = actualTower.maxHealth; 
-                                 // Level was already incremented when upgrade started in Tower.upgrade
+                                 actualTower.level++; // Increment level *after* upgrade duration
+                                 actualTower.totalInvested += actualTower.upgradeCost; // Add upgrade cost to total invested
                                  actualTower.updateStatsToLevel(); // Update stats based on the *new* level
                                  actualTower.health += (actualTower.maxHealth - oldMaxHealth);
                                  actualTower.health = Math.min(actualTower.health, actualTower.maxHealth); 
@@ -871,6 +986,7 @@
                              // Re-path units after item is placed
                              enemies.forEach(enemy=>{const distToNewItem=getDistance({x:enemy.pixelX,y:enemy.pixelY},{x:itemPixelX,y:itemPixelY});if(distToNewItem<TILE_SIZE*4){const currentEnemyTileX=Math.floor(enemy.pixelX/TILE_SIZE);const currentEnemyTileY=Math.floor(enemy.pixelY/TILE_SIZE);enemy.path=getAStarPath(currentEnemyTileX,currentEnemyTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y);enemy.pathIndex=0;if(enemy.path.length===0)console.log("Existing enemy re-path failed after placement.",enemy);}});
                              soldiers.forEach(soldier=>{const distToNewItem=getDistance({x:soldier.pixelX,y:soldier.pixelY},{x:itemPixelX,y:itemPixelY});if(distToNewItem<TILE_SIZE*4){const currentSoldierTileX=Math.floor(soldier.pixelX/TILE_SIZE);const currentSoldierTileY=Math.floor(soldier.pixelY/TILE_SIZE);soldier.path=getAStarPath(currentSoldierTileX,currentSoldierTileY,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y, null, false);soldier.pathIndex=0;if(soldier.path.length===0)console.log("Existing soldier re-path failed.",soldier);}});
+                              refugees.forEach(refugee=>{const distToNewItem=getDistance({x:refugee.pixelX,y:refugee.pixelY},{x:itemPixelX,y:itemPixelY});if(distToNewItem<TILE_SIZE*4){const currentRefugeeTileX=Math.floor(refugee.pixelX/TILE_SIZE);const currentRefugeeTileY=Math.floor(refugee.pixelY/TILE_SIZE);refugee.path=getAStarPath(currentRefugeeTileX,currentRefugeeTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y, null, false);refugee.pathIndex=0;if(refugee.path.length===0)console.log("Existing refugee re-path failed.",refugee);}}); // Re-path refugees too
                          }
 
                          // Worker finished task. Set to returning, check queue immediately.
