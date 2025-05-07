@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aether Siege</title> 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --portal-enemy-color1: rgba(150, 50, 255, 0.7);
+            --portal-enemy-color2: rgba(200, 100, 255, 1);
+            --portal-home-color1: rgba(50, 200, 255, 0.7);
+            --portal-home-color2: rgba(100, 220, 255, 1);
+            --energy-color: #00FFFF; /* Cyan for Energy */
+        }
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #0c1019; 
+            color: #a0aec0; 
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; 
+            min-height: 100vh; margin: 0; overflow-x: hidden; 
+        }
+
+        /* Title Screen Styles */
+        #titleScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0c1019; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 2000;
+            transition: opacity 0.5s ease-out;
+        }
+        #gameTitle {
+            font-size: 2.5rem; color: #f6e05e; 
+            text-shadow: 0 0 10px #f6e05e, 0 0 20px #f6e05e, 0 0 30px #fca5a5; 
+            animation: pulse 2s infinite alternate; text-align: center; line-height: 1.2;
+        }
+        @media (max-width: 600px) { #gameTitle { font-size: 1.8rem; } }
+        #startGameButton {
+            margin-top: 2rem; padding: 0.8rem 2rem; font-size: 1rem;
+            background-color: #4a5568; color: #e2e8f0; 
+            border: 2px solid #718096; border-radius: 0.5rem;
+            cursor: pointer; transition: background-color 0.3s, transform 0.1s;
+        }
+        #startGameButton:hover { background-color: #718096; }
+        #startGameButton:active { transform: scale(0.95); }
+        @keyframes pulse { from { opacity: 0.7; transform: scale(1); } to { opacity: 1; transform: scale(1.03); } }
+
+        /* Main Game Container - Hidden initially */
+        #mainGameContainer {
+            display: none; flex-direction: column; width: 100%;
+            max-width: 700px; padding: 0.5rem; box-sizing: border-box;
+            margin-top: 0.5rem; /* Reduced margin */
+        }
+        
+        /* Top Info Bar */
+        #topInfoBar {
+            display: flex; justify-content: space-between; align-items: flex-start; 
+            background-color: #1a202c; padding: 0.4rem 0.75rem; /* Reduced padding */
+             border-radius: 0.5rem;
+            margin-bottom: 0.5rem; font-size: 0.65rem; /* Smaller base font */
+             border: 1px solid #2d3748;
+        }
+        #infoLeft, #infoCenter, #infoRight { display: flex; flex-direction: column; }
+        #infoLeft { align-items: flex-start; } 
+        #infoCenter { align-items: center; text-align: center; } /* Center align text */
+        #infoRight { align-items: flex-end; }
+        #topInfoBar p { margin: 0.05rem 0; } /* Reduced margin */
+        #topInfoBar .label { color: #a0aec0; } 
+        #topInfoBar .value { color: #f6e05e; font-weight: bold; } 
+        #topInfoBar .energy-value { color: var(--energy-color); font-weight: bold; } /* Energy color */
+        #scoreDisplayContainer { margin-top: 0.1rem; }
+        #workerDisplayContainer { margin-top: 0.1rem; } 
+        #gateHealthDisplayContainer { margin-top: 0.1rem; } 
+        #castleLevelDisplayContainer { margin-top: 0.1rem; } 
+        #waveInfoContainer { margin-top: 0.1rem; } 
+         #countdownDisplay {
+            font-size: 0.6rem; color: #63b3ed; /* Tailwind blue-400 */
+            margin-top: 0.2rem; text-align: center; height: 1em; /* Reserve space */
+        }
+
+
+        #gameCanvas {
+            background-color: #2d3748; border: 2px solid #4a5568; border-radius: 0.5rem; 
+            cursor: default; display: block; margin-left: auto; margin-right: auto; max-width: 100%; 
+        }
+        #bottomStatsPanel {
+            background-color: #1a202c; color: #e2e8f0; border: 1px solid #2d3748; 
+            border-radius: 0.5rem; padding: 0.5rem; width: 100%; max-width: 640px; 
+            box-sizing: border-box; font-size: 0.65rem; text-align: center;
+            margin-top: 0.5rem; margin-left: auto; margin-right: auto;
+        }
+        #bottomStatsPanel p { margin: 0.15rem 0; } 
+        #bottomStatsPanel .stat-label { color: #a0aec0; } 
+        #bottomStatsPanel .stat-value { color: #f6e05e; } 
+        #bottomStatsPanel .energy-value { color: var(--energy-color); } /* Energy color for costs */
+
+        /* Bottom Control Bar */
+        #bottomControlBar {
+            background-color: #1a202c; padding: 0.5rem; border-radius: 0.5rem;
+            margin-top: 0.75rem; border: 1px solid #2d3748;
+        }
+        /* Tab Container */
+        #buildTabsContainer {
+            display: flex;
+            border-bottom: 2px solid #4a5568; /* Separator line */
+            margin-bottom: 0.5rem;
+        }
+        .build-tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border: none;
+            background-color: transparent;
+            color: #a0aec0;
+            font-size: 0.7rem;
+            border-bottom: 2px solid transparent; /* Default inactive state */
+             margin-bottom: -2px; /* Overlap the container border */
+             transition: color 0.2s, border-color 0.2s;
+        }
+        .build-tab:hover {
+            color: #e2e8f0;
+        }
+        .build-tab.active {
+            color: #f6e05e; /* Highlight active tab */
+            border-bottom-color: #f6e05e;
+        }
+        /* Tab Content Area */
+        .build-tab-content {
+            display: none; /* Hidden by default */
+             padding-top: 0.5rem;
+        }
+        .build-tab-content.active {
+            display: block; /* Show active content */
+        }
+        .build-buttons {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; 
+        }
+
+        .ui-button {
+            background-color: #4a5568; color: #e2e8f0; border: none;
+            padding: 0.6rem 0.8rem; border-radius: 0.375rem; cursor: pointer;
+            transition: background-color 0.2s; font-family: 'Press Start 2P', cursive;
+            text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;
+        }
+        .ui-button:hover:not(.disabled) { background-color: #718096; }
+        .ui-button:active:not(.disabled) { background-color: #2d3748; }
+        .ui-button.disabled { background-color: #2d3748; color: #718096; cursor: not-allowed; opacity: 0.6; } /* Added opacity */
+        
+        .control-button { 
+            width: 65px; height: 65px; /* Adjusted size */
+            padding-top: 0.3rem; padding-bottom: 0.3rem;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-size: 0.55rem; line-height: 1;
+        }
+        .control-icon {
+            width: 28px; height: 28px; 
+            border: 2px solid; margin-bottom: 0.2rem;
+        }
+        .control-cost { font-size: 0.55rem; margin-top: 0.1rem; }
+
+        .message-box {
+            position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(0,0,0,0.85); color: white; padding: 1rem 1.5rem; 
+            border-radius: 0.5rem; text-align: center; z-index: 1000; 
+            font-size: 0.9rem; box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            width: 80%; max-width: 400px; 
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="titleScreen">
+        <h1 id="gameTitle">Aether Siege</h1> 
+        <button id="startGameButton">Start Game</button>
+    </div>
+
+    <div id="mainGameContainer">
+        <div id="topInfoBar">
+            <div id="infoLeft">
+                <p><span class="label">Energy:</span> <span id="energyDisplay" class="energy-value">300</span></p> 
+                <div id="scoreDisplayContainer">
+                     <p><span class="label">Score:</span> <span id="scoreDisplay" class="value">0</span></p>
+                </div>
+            </div>
+            <div id="infoCenter">
+                 <div id="waveInfoContainer"> 
+                     <p><span class="label">Stage</span> <span id="stageDisplay" class="value">1</span> - <span class="label">Wave</span> <span id="waveInStageDisplay" class="value">0</span>/<span id="wavesInStageDisplay" class="value">5</span></p>
+                 </div>
+                 <div id="gateHealthDisplayContainer">
+                     <p><span class="label">Gate:</span> <span id="gateHealthDisplay" class="value">500/500</span></p>
+                 </div>
+                 <div id="castleLevelDisplayContainer">
+                     <p><span class="label">Castle Lvl:</span> <span id="castleLevelDisplay" class="value">1</span></p>
+                 </div>
+                 <div id="countdownDisplay" class="hidden">Next wave in: <span id="countdownTimer">15</span>s</div>
+            </div>
+            <div id="infoRight">
+                <p><span class="label">Lives:</span> <span id="livesDisplay" class="value">25</span></p>
+                 <div id="workerDisplayContainer">
+                     <p><span class="label">Workers:</span> <span id="workerDisplay" class="value">1/1</span></p>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="bottomStatsPanel" class="hidden">
+            <p><span class="stat-label">Tower:</span> <span id="statsTowerType" class="stat-value">N/A</span> | <span class="stat-label">Lvl:</span> <span id="statsTowerLevel" class="stat-value">N/A</span></p>
+            <p><span class="stat-label">HP:</span> <span id="statsTowerHealth" class="stat-value">N/A</span></p>
+            <p><span class="stat-label">DMG:</span> <span id="statsTowerDamage" class="stat-value">N/A</span> | <span class="stat-label">RNG:</span> <span id="statsTowerRange" class="stat-value">N/A</span> | <span class="stat-label">Rate:</span> <span id="statsTowerFireRate" class="stat-value">N/A</span></p>
+            <p><span class="stat-label">Upgrade:</span> <span id="statsUpgradeCost" class="energy-value">⚡N/A</span> | <span class="stat-label">Sell:</span> <span id="statsSellPrice" class="energy-value">⚡N/A</span></p> 
+        </div>
+
+        <div id="bottomControlBar">
+            <div id="buildTabsContainer">
+                <button class="build-tab active" data-tab="towers">Towers</button>
+                <button class="build-tab" data-tab="walls">Walls</button>
+                <button class="build-tab" data-tab="support">Support</button>
+            </div>
+
+            <div id="buildControlsContent">
+                <div id="tab-towers" class="build-tab-content active">
+                     <div class="build-buttons">
+                        <button id="buyBasicTower" class="ui-button control-button">
+                            Basic
+                            <div class="control-icon bg-blue-500 border-blue-700"></div>
+                            <span class="control-cost">⚡50</span> 
+                        </button>
+                        <button id="buySniperTower" class="ui-button control-button">
+                            Sniper
+                            <div class="control-icon bg-green-500 border-green-700"></div>
+                            <span class="control-cost">⚡100</span> 
+                        </button>
+                        <button id="buySplashTower" class="ui-button control-button">
+                            Splash
+                            <div class="control-icon bg-purple-500 border-purple-700"></div>
+                            <span class="control-cost">⚡125</span> 
+                        </button>
+                        <button id="buySlowTower" class="ui-button control-button">
+                            Slow
+                            <div class="control-icon bg-cyan-500 border-cyan-700"></div>
+                            <span class="control-cost">⚡80</span> 
+                        </button>
+                         <button id="buyBuffTower" class="ui-button control-button">
+                            Buff
+                            <div class="control-icon bg-pink-500 border-pink-700"></div>
+                            <span class="control-cost">⚡150</span> 
+                        </button>
+                    </div>
+                </div>
+
+                <div id="tab-walls" class="build-tab-content">
+                      <div class="build-buttons">
+                        <button id="buyObstacleButton" class="ui-button control-button">
+                            Block
+                            <div class="control-icon bg-gray-500 border-gray-700"></div>
+                            <span class="control-cost">⚡15</span> 
+                        </button>
+                        <button id="buyReinforcedObstacleButton" class="ui-button control-button">
+                            Heavy
+                            <div class="control-icon bg-gray-700 border-gray-900"></div>
+                            <span class="control-cost">⚡40</span> 
+                        </button>
+                        </div>
+                </div>
+
+                 <div id="tab-support" class="build-tab-content">
+                      <div class="build-buttons">
+                        <button id="spawnSoldierButton" class="ui-button control-button">
+                            Soldier
+                            <div class="control-icon bg-yellow-500 border-yellow-700"></div>
+                            <span class="control-cost">⚡75</span> 
+                        </button>
+                         <button id="upgradeCastleButton" class="ui-button control-button">
+                            Castle
+                            <div class="control-icon bg-teal-500 border-teal-700"></div>
+                            <span id="upgradeCastleCostDisplay" class="control-cost">⚡150</span> 
+                        </button>
+                         <button id="upgradeWorkerButton" class="ui-button control-button">
+                            Worker
+                            <div class="control-icon bg-orange-500 border-orange-700"></div>
+                            <span id="upgradeWorkerCostDisplay" class="control-cost">⚡100</span> 
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button id="callWaveButton" class="ui-button w-full mt-4">Call Next Wave</button>
+        </div>
+        
+        <div id="messageBox" class="message-box hidden"></div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // --- DOM Elements ---
+            const titleScreen = document.getElementById('titleScreen');
+            const startGameButton = document.getElementById('startGameButton');
+            const mainGameContainer = document.getElementById('mainGameContainer');
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const energyDisplay = document.getElementById('energyDisplay'); // Renamed
+            const livesDisplay = document.getElementById('livesDisplay');
+            const stageDisplay = document.getElementById('stageDisplay'); 
+            const waveInStageDisplay = document.getElementById('waveInStageDisplay'); 
+            const wavesInStageDisplay = document.getElementById('wavesInStageDisplay'); 
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const workerDisplay = document.getElementById('workerDisplay'); 
+            const gateHealthDisplay = document.getElementById('gateHealthDisplay'); 
+            const castleLevelDisplay = document.getElementById('castleLevelDisplay'); 
+            const countdownDisplay = document.getElementById('countdownDisplay'); 
+            const countdownTimerSpan = document.getElementById('countdownTimer'); 
+            const callWaveButton = document.getElementById('callWaveButton');
+            const buyBasicTowerButton = document.getElementById('buyBasicTower');
+            const buySniperTowerButton = document.getElementById('buySniperTower');
+            const buySplashTowerButton = document.getElementById('buySplashTower');
+            const buySlowTowerButton = document.getElementById('buySlowTower'); // New
+            const buyBuffTowerButton = document.getElementById('buyBuffTower'); // New
+            const buyObstacleButton = document.getElementById('buyObstacleButton');
+            const buyReinforcedObstacleButton = document.getElementById('buyReinforcedObstacleButton'); // New
+            const spawnSoldierButton = document.getElementById('spawnSoldierButton'); 
+            const upgradeCastleButton = document.getElementById('upgradeCastleButton'); 
+            const upgradeWorkerButton = document.getElementById('upgradeWorkerButton'); // New
+            const upgradeCastleCostDisplay = document.getElementById('upgradeCastleCostDisplay'); 
+            const upgradeWorkerCostDisplay = document.getElementById('upgradeWorkerCostDisplay'); // New
+            const messageBox = document.getElementById('messageBox');
+            const bottomStatsPanel = document.getElementById('bottomStatsPanel');
+            const statsTowerType = document.getElementById('statsTowerType');
+            const statsTowerLevel = document.getElementById('statsTowerLevel');
+            const statsTowerHealth = document.getElementById('statsTowerHealth'); 
+            const statsTowerDamage = document.getElementById('statsTowerDamage');
+            const statsTowerRange = document.getElementById('statsTowerRange');
+            const statsTowerFireRate = document.getElementById('statsTowerFireRate');
+            const statsUpgradeCost = document.getElementById('statsUpgradeCost');
+            const statsSellPrice = document.getElementById('statsSellPrice');
+            const buildTabsContainer = document.getElementById('buildTabsContainer'); // Tab container
+            const buildTabContents = document.getElementById('buildControlsContent').children; // Tab content divs
+
+            // --- Game Configuration ---
+            const CANVAS_WIDTH = 640; const CANVAS_HEIGHT = 480; const TILE_SIZE = 32;
+            const GRID_WIDTH = CANVAS_WIDTH / TILE_SIZE; const GRID_HEIGHT = CANVAS_HEIGHT / TILE_SIZE; 
+            const EARLY_CALL_BONUS_BASE = 20; const WAVE_ENEMY_ATTACKS_TOWERS = 5; 
+            const MAX_LIVES = 50; const GATE_MAX_HEALTH = 500; 
+            const GATE_DAMAGE_PER_HIT = 2; 
+            const INITIAL_WORKERS = 1; 
+            const MAX_WORKERS = 3; // Max workers from castle upgrades
+            let BUILD_TIME = 2000; 
+            let UPGRADE_TIME = 1500; 
+            let WORKER_SPEED = 3; 
+            const HARVEST_TIME = 1500; 
+            const ENERGY_PER_CRYSTAL = 25; 
+            const INITIAL_CRYSTALS = 8; 
+            const WAVE_START_COUNTDOWN_SECONDS = 15; 
+            const ENEMY_PORTAL_POS = { x: 0, y: Math.floor(GRID_HEIGHT / 2) };
+            const HOME_PORTAL_POS = { x: GRID_WIDTH - 1, y: Math.floor(GRID_HEIGHT / 2) };
+            const WORKER_HOME_POS = { x: (HOME_PORTAL_POS.x - 1.5) * TILE_SIZE, y: HOME_PORTAL_POS.y * TILE_SIZE + TILE_SIZE / 2 }; 
+            const TOWER_ACTION_ICON_RADIUS = 10; const TOWER_ACTION_ICON_OFFSET_Y = -TILE_SIZE * 0.7; 
+            const UPGRADE_ICON_OFFSET_X = -TILE_SIZE * 0.5; const SELL_ICON_OFFSET_X = TILE_SIZE * 0.5;
+            const HARVEST_ICON_OFFSET_X = 0; 
+            const HARVEST_ICON_OFFSET_Y = -TILE_SIZE * 0.7; 
+
+            // --- Stages Definition ---
+            const STAGES = [
+                { waves: 5, difficultyMultiplier: 1.0, stageClearBonus: 100 },
+                { waves: 8, difficultyMultiplier: 1.2, stageClearBonus: 200 },
+                { waves: 10, difficultyMultiplier: 1.5, stageClearBonus: 350 },
+                { waves: 12, difficultyMultiplier: 1.8, stageClearBonus: 500 },
+                { waves: 15, difficultyMultiplier: 2.2, stageClearBonus: 750 } // 50 total waves
+            ];
+            let MAX_WAVES = STAGES.reduce((sum, stage) => sum + stage.waves, 0); // Calculate total waves
+
+            // --- Game State ---
+            let energy = 300; // Renamed from plasma
+            let lives = 25; 
+            let globalWaveCounter = 0; 
+            let currentStageIndex = 0; 
+            let currentWaveInStage = 0; 
+            let score = 0;
+            let enemies = []; let towers = []; let obstacles = []; let projectiles = []; let particles = []; 
+            let soldiers = []; 
+            let refugees = []; 
+            let workers = []; 
+            let energyCrystals = []; // Renamed from plasmaCrystals
+            let placingItemInfo = null; let selectedTower = null; 
+            let selectedCrystal = null; 
+            let enemySpawnQueue = []; let enemiesOnBoard = 0; 
+            let gateHealth = GATE_MAX_HEALTH; 
+            let constructionSites = []; 
+            let buildQueue = []; 
+            let refugeeSpawnTimer = 0; 
+            const REFUGEE_SPAWN_INTERVAL = 15000; 
+            let castleLevel = 1; let castleAttackDamage = 3; let castleAttackRange = TILE_SIZE * 2.5; 
+            let castleAttackRate = 90; let castleFireCooldown = 0; let castleUpgradeCost = 150;
+            const CASTLE_MAX_LEVEL = 5;
+            let workerLevel = 1; // Worker upgrade level
+            let workerUpgradeCost = 100;
+            const WORKER_MAX_LEVEL = 5;
+            let waveCountdownActive = false; 
+            let waveCountdownTimer = WAVE_START_COUNTDOWN_SECONDS;
+            let waveIntervalId = null;
+            let gameOver = false; let gameWon = false; let gameLoopTicker = 0; let gameStarted = false; 
+            
+            // --- Item Definitions --- 
+            const ITEMS = { 
+                OBSTACLE: { name: "Block", cost: 15, color: '#718096', size: TILE_SIZE, isTower: false },
+                REINFORCED_OBSTACLE: { name: "Heavy Block", cost: 40, color: '#4A5568', size: TILE_SIZE, isTower: false } // Darker grey
+            };
+            const TOWER_TYPES = { 
+                BASIC: { name: "Basic", cost: 50, color: '#4299e1', projectileColor: '#f6e05e', projectileSpeed: 5, projectileSize: 4, size: TILE_SIZE * 0.8, isTower: true, baseHealth: 100, canTargetFlying: true, canSeeStealth: false, levels: [ { damage: 10, range: 80, fireRate: 60, healthBonus: 0, upgradeCost: 75 }, { damage: 15, range: 90, fireRate: 55, healthBonus: 25, upgradeCost: 125 }, { damage: 22, range: 100, fireRate: 50, healthBonus: 50, upgradeCost: 200 }, { damage: 30, range: 110, fireRate: 45, healthBonus: 75, upgradeCost: 0 } ] },
+                SNIPER: { name: "Sniper", cost: 100, color: '#48bb78', projectileColor: '#a0f2c1', projectileSpeed: 10, projectileSize: 5, size: TILE_SIZE * 0.8, isTower: true, baseHealth: 75, canTargetFlying: true, canSeeStealth: true, levels: [ { damage: 40, range: 180, fireRate: 120, healthBonus: 0, upgradeCost: 150 }, { damage: 60, range: 200, fireRate: 110, healthBonus: 20, upgradeCost: 250 }, { damage: 85, range: 220, fireRate: 100, healthBonus: 40, upgradeCost: 350 }, { damage: 110, range: 240, fireRate: 90, healthBonus: 60, upgradeCost: 0 } ] },
+                SPLASH: { name: "Splash", cost: 125, color: '#9f7aea', projectileColor: '#d6bcfa', projectileSpeed: 4, projectileSize: 6, splashRadius: 40, splashDamageFactor: 0.5, size: TILE_SIZE * 0.8, isTower: true, baseHealth: 120, canTargetFlying: true, canSeeStealth: false, levels: [ { damage: 15, range: 70, fireRate: 70, splashRadius: 40, healthBonus: 0, upgradeCost: 100 }, { damage: 20, range: 80, fireRate: 65, splashRadius: 45, healthBonus: 30, upgradeCost: 175 }, { damage: 28, range: 90, fireRate: 60, splashRadius: 50, healthBonus: 60, upgradeCost: 275 }, { damage: 35, range: 100, fireRate: 55, splashRadius: 55, healthBonus: 90, upgradeCost: 0 } ] },
+                SLOW: { name: "Slow", cost: 80, color: '#4fd1c5', projectileColor: '#a7f3d0', projectileSpeed: 6, projectileSize: 4, size: TILE_SIZE * 0.7, isTower: true, baseHealth: 90, canTargetFlying: true, canSeeStealth: false, slowFactor: 0.6, slowDuration: 120, /* 2 seconds */ levels: [ { damage: 5, range: 90, fireRate: 70, slowFactor: 0.6, healthBonus: 0, upgradeCost: 60 }, { damage: 8, range: 100, fireRate: 65, slowFactor: 0.5, healthBonus: 20, upgradeCost: 100 }, { damage: 10, range: 110, fireRate: 60, slowFactor: 0.4, healthBonus: 40, upgradeCost: 150 }, { damage: 12, range: 120, fireRate: 55, slowFactor: 0.3, healthBonus: 60, upgradeCost: 0 } ] },
+                BUFF: { name: "Buff", cost: 150, color: '#f687b3', size: TILE_SIZE * 0.9, isTower: true, baseHealth: 150, isAura: true, buffRadius: TILE_SIZE * 3, buffAmount: 1.2, buffType: 'damage', buffCooldown: 10, /* Check every 10 frames */ levels: [ { range: TILE_SIZE*3, buffAmount: 1.2, healthBonus: 0, upgradeCost: 120 }, { range: TILE_SIZE*3.5, buffAmount: 1.3, healthBonus: 40, upgradeCost: 200 }, { range: TILE_SIZE*4, buffAmount: 1.4, healthBonus: 80, upgradeCost: 300 }, { range: TILE_SIZE*4.5, buffAmount: 1.5, healthBonus: 120, upgradeCost: 0 } ] }
+            };
+            const ENEMY_TYPES = { 
+                NORMAL: { health: 70, speed: 1, color: '#f56565', size: 10, value: 5, canAttackTowers: false, isFlying: false, isStealth: false },
+                FAST: { health: 45, speed: 2.2, color: '#ed8936', size: 8, value: 7, canAttackTowers: false, isFlying: false, isStealth: false },
+                STRONG: { health: 200, speed: 0.6, color: '#805ad5', size: 15, value: 15, canAttackTowers: true, attackDamage: 10, attackRange: TILE_SIZE * 0.6, attackCooldownBase: 90, isFlying: false, isStealth: false },
+                ARMORED: { health: 300, speed: 0.5, color: '#718096', size: 16, value: 20, canAttackTowers: true, attackDamage: 15, attackRange: TILE_SIZE * 0.7, attackCooldownBase: 120, isFlying: false, isStealth: false },
+                SWARM: { health: 30, speed: 1.3, color: '#fbd38d', size: 6, value: 3, canAttackTowers: false, isFlying: false, isStealth: false },
+                FLYER: { health: 50, speed: 1.2, color: '#63b3ed', size: 9, value: 8, canAttackTowers: false, isFlying: true, isStealth: false }, // Blue flyer
+                STEALTH: { health: 60, speed: 1.1, color: '#718096', size: 9, value: 10, canAttackTowers: false, isFlying: false, isStealth: true, stealthDuration: 180, visibleDuration: 120 } // Grey stealth unit
+            };
+             const SOLDIER_TYPES = { 
+                SOLDIER: { name: "Soldier", cost: 75, color: '#f6e05e', speed: 1.5, size: 9, rewardMoney: 50, rewardScore: 100 }
+            };
+            const REFUGEE_TYPES = { REFUGEE: { name: "Refugee", color: '#a0aec0', speed: 0.8, size: 7, lifeReward: 1 } };
+
+            // --- A* Pathfinding --- (Remains the same)
+            class AStarNode { constructor(x,y,g=0,h=0,parent=null){this.x=x;this.y=y;this.g=g;this.h=h;this.f=g+h;this.parent=parent;} }
+            function heuristic(node,goal){return Math.abs(node.x-goal.x)+Math.abs(node.y-goal.y);}
+            function isWalkable(x,y,currentGrid){if(x<0||x>=GRID_WIDTH||y<0||y>=GRID_HEIGHT)return false;if(currentGrid[y][x]===1)return false;return true;}
+            const DIAGONAL_COST=Math.SQRT2; const CARDINAL_COST=1;
+            function getAStarPath(startX,startY,endX,endY,tempObstacle=null, ignoreObstacles = false){const grid=Array(GRID_HEIGHT).fill(null).map(()=>Array(GRID_WIDTH).fill(0));if(!ignoreObstacles){towers.forEach(t=>{if(t.tileY>=0&&t.tileY<GRID_HEIGHT&&t.tileX>=0&&t.tileX<GRID_WIDTH)grid[t.tileY][t.tileX]=1;});obstacles.forEach(o=>{if(o.tileY>=0&&o.tileY<GRID_HEIGHT&&o.tileX>=0&&o.tileX<GRID_WIDTH)grid[o.tileY][o.tileX]=1;});}if(tempObstacle&&!ignoreObstacles){if(tempObstacle.y>=0&&tempObstacle.y<GRID_HEIGHT&&tempObstacle.x>=0&&tempObstacle.x<GRID_WIDTH)grid[tempObstacle.y][tempObstacle.x]=1;}if(startX===endX&&startY===endY)return[{x:startX,y:startY}];if(startX>=0&&startX<GRID_WIDTH&&startY>=0&&startY<GRID_HEIGHT)grid[startY][startX]=0;const openSet=[];const closedSet=new Set();const startNode=new AStarNode(startX,startY,0,heuristic({x:startX,y:startY},{x:endX,y:endY}));openSet.push(startNode);while(openSet.length>0){openSet.sort((a,b)=>a.f-b.f);const currentNode=openSet.shift();if(currentNode.x===endX&&currentNode.y===endY){const path=[];let temp=currentNode;while(temp){path.push({x:temp.x*TILE_SIZE+TILE_SIZE/2,y:temp.y*TILE_SIZE+TILE_SIZE/2});temp=temp.parent;}return path.reverse();}closedSet.add(`${currentNode.x}-${currentNode.y}`);const neighbors=[{x:currentNode.x+1,y:currentNode.y,cost:CARDINAL_COST},{x:currentNode.x-1,y:currentNode.y,cost:CARDINAL_COST},{x:currentNode.x,y:currentNode.y+1,cost:CARDINAL_COST},{x:currentNode.x,y:currentNode.y-1,cost:CARDINAL_COST},{x:currentNode.x+1,y:currentNode.y+1,cost:DIAGONAL_COST},{x:currentNode.x-1,y:currentNode.y+1,cost:DIAGONAL_COST},{x:currentNode.x+1,y:currentNode.y-1,cost:DIAGONAL_COST},{x:currentNode.x-1,y:currentNode.y-1,cost:DIAGONAL_COST}];for(const neighborDef of neighbors){const neighborPos={x:neighborDef.x,y:neighborDef.y};const moveCost=neighborDef.cost;if(!isWalkable(neighborPos.x,neighborPos.y,grid)||closedSet.has(`${neighborPos.x}-${neighborPos.y}`))continue;if(moveCost>CARDINAL_COST&&!ignoreObstacles){const dx=neighborPos.x-currentNode.x;const dy=neighborPos.y-currentNode.y;if(!isWalkable(currentNode.x+dx,currentNode.y,grid)&&!isWalkable(currentNode.x,currentNode.y+dy,grid)){continue;}}const gScore=currentNode.g+moveCost;let neighborNode=openSet.find(n=>n.x===neighborPos.x&&n.y===neighborPos.y);if(!neighborNode||gScore<neighborNode.g){if(!neighborNode){neighborNode=new AStarNode(neighborPos.x,neighborPos.y);openSet.push(neighborNode);}neighborNode.parent=currentNode;neighborNode.g=gScore;neighborNode.h=heuristic(neighborNode,{x:endX,y:endY});neighborNode.f=neighborNode.g+neighborNode.h;}}}return[];}
+
+            // --- Game Setup ---
+            function initializeGame() { 
+                canvas.width = CANVAS_WIDTH; canvas.height = CANVAS_HEIGHT;
+                // maxWaveDisplay.textContent = MAX_WAVES; // Total waves not needed now
+                resetGame(); 
+                if (!gameStarted) { 
+                    gameStarted = true;
+                    refugeeSpawnTimer = REFUGEE_SPAWN_INTERVAL; 
+                    gameLoop();
+                }
+            }
+
+            // --- Worker Class --- (Updated harvest logic)
+            class Worker {
+                constructor(id) {
+                    this.id = id;
+                    this.pixelX = WORKER_HOME_POS.x;
+                    this.pixelY = WORKER_HOME_POS.y;
+                    this.size = TILE_SIZE * 0.4;
+                    this.color = 'orange';
+                    this.state = 'idle'; // 'idle', 'movingToSite', 'building', 'returning', 'movingToResource', 'harvesting'
+                    this.targetX = null;
+                    this.targetY = null;
+                    this.targetCrystal = null; // Store reference to target crystal
+                    this.constructionSiteId = null; 
+                    this.harvestEndTime = 0; 
+                    this.speed = WORKER_SPEED; // Base speed
+                    this.buildSpeedFactor = 1; // Base build speed factor
+                }
+
+                assignTask(constructionSite) {
+                    // Can assign if idle OR returning (will interrupt return)
+                    if (this.state === 'idle' || this.state === 'returning') { 
+                        console.log(`Worker ${this.id} assigned build/upgrade task at ${constructionSite.tileX},${constructionSite.tileY}`);
+                        this.state = 'movingToSite';
+                        this.targetX = constructionSite.tileX * TILE_SIZE + TILE_SIZE / 2;
+                        this.targetY = constructionSite.tileY * TILE_SIZE + TILE_SIZE / 2;
+                        this.constructionSiteId = constructionSite.id; 
+                        constructionSite.workerId = this.id; 
+                        this.targetCrystal = null; // Ensure not targeting crystal
+                        updateUI(); 
+                        updateBuildButtons();
+                        return true; 
+                    }
+                    console.log(`Worker ${this.id} could not be assigned task (state: ${this.state})`);
+                    return false; 
+                }
+                 assignHarvestTask(crystal) {
+                    if (this.state === 'idle' || this.state === 'returning') {
+                         console.log(`Worker ${this.id} assigned harvest task at ${crystal.x},${crystal.y}`);
+                        this.state = 'movingToResource';
+                        this.targetCrystal = crystal;
+                        this.targetX = crystal.x * TILE_SIZE + TILE_SIZE / 2;
+                        this.targetY = crystal.y * TILE_SIZE + TILE_SIZE / 2;
+                        this.constructionSiteId = null; // Ensure not tied to construction
+                        crystal.assignedWorkerId = this.id; // Mark crystal as assigned
+                        updateUI();
+                        updateBuildButtons(); // Worker is now busy (logically)
+                        return true;
+                    }
+                     console.log(`Worker ${this.id} could not be assigned harvest task (state: ${this.state})`);
+                    return false;
+                }
+
+
+                update() {
+                    const currentSpeed = this.speed; // Use worker's current speed
+                    if (this.state === 'movingToSite' || this.state === 'movingToResource') {
+                        const dx = this.targetX - this.pixelX;
+                        const dy = this.targetY - this.pixelY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < currentSpeed) {
+                            this.pixelX = this.targetX;
+                            this.pixelY = this.targetY;
+                            
+                            if (this.state === 'movingToSite') {
+                                this.state = 'building'; // Reached construction site
+                                const site = constructionSites.find(s => s.id === this.constructionSiteId);
+                                if (site && !site.endTime) { 
+                                    console.log(`Worker ${this.id} arrived at site ${site.id}, starting timer.`);
+                                    // Apply build speed factor
+                                    const buildDuration = (site.isUpgrade ? UPGRADE_TIME : BUILD_TIME) / this.buildSpeedFactor;
+                                    site.endTime = Date.now() + buildDuration;
+                                }
+                            } else { // Moving to resource
+                                this.state = 'harvesting'; // Reached crystal
+                                // Apply harvest speed factor
+                                this.harvestEndTime = Date.now() + (HARVEST_TIME / this.buildSpeedFactor); 
+                                 console.log(`Worker ${this.id} arrived at crystal, starting harvest.`);
+                            }
+                        } else {
+                            this.pixelX += (dx / distance) * currentSpeed;
+                            this.pixelY += (dy / distance) * currentSpeed;
+                        }
+                    } else if (this.state === 'harvesting') {
+                        if (Date.now() >= this.harvestEndTime) {
+                            // Harvest complete
+                            console.log(`Worker ${this.id} finished harvesting.`);
+                            
+                            // Find the crystal again to ensure it exists before modifying/removing
+                            const crystalIndex = energyCrystals.findIndex(c => c.x === this.targetCrystal?.x && c.y === this.targetCrystal?.y); // Added null check
+                            if (crystalIndex > -1) {
+                                energyCrystals.splice(crystalIndex, 1); // Remove the crystal
+                                energy += ENERGY_PER_CRYSTAL; // Grant energy
+                                createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); // Harvest effect
+                                console.log(`Energy increased to ${energy}`);
+                            } else {
+                                console.warn("Harvested crystal not found in array? Could have been harvested by another worker simultaneously or removed.");
+                            }
+                            
+                            this.state = 'returning'; // Start returning home
+                            this.targetX = WORKER_HOME_POS.x;
+                            this.targetY = WORKER_HOME_POS.y;
+                            this.targetCrystal = null; // Clear target crystal reference
+                            updateUI(); // Update energy count
+                            updateBuildButtons(); // Worker is now available (returning)
+                            checkBuildQueue(this); // Check queue immediately
+                        }
+                    } else if (this.state === 'returning') {
+                        const dx = WORKER_HOME_POS.x - this.pixelX;
+                        const dy = WORKER_HOME_POS.y - this.pixelY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < currentSpeed) {
+                            this.pixelX = WORKER_HOME_POS.x;
+                            this.pixelY = WORKER_HOME_POS.y;
+                            this.state = 'idle'; // Returned home
+                            this.constructionSiteId = null; 
+                            // UI and buttons updated when task finishes/worker set to returning
+                        } else {
+                            this.pixelX += (dx / distance) * currentSpeed;
+                            this.pixelY += (dy / distance) * currentSpeed;
+                        }
+                    }
+                    // No automatic harvesting check when idle
+                }
+
+                draw() {
+                    // Only draw if moving or idle or returning (not while 'building' or 'harvesting' at site)
+                    if (this.state !== 'building' && this.state !== 'harvesting') {
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(this.pixelX - this.size / 2, this.pixelY - this.size / 2, this.size, this.size);
+                        ctx.strokeStyle = 'black';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(this.pixelX - this.size / 2, this.pixelY - this.size / 2, this.size, this.size);
+                    }
+                }
+            }
+
+
+            // --- Enemy Class, Obstacle Class, Tower Class, Projectile Class, Particle System ---
+            class Enemy{constructor(type){this.pixelX=ENEMY_PORTAL_POS.x*TILE_SIZE+TILE_SIZE/2;this.pixelY=ENEMY_PORTAL_POS.y*TILE_SIZE+TILE_SIZE/2;this.type=type;this.health=type.health*(1+(globalWaveCounter*0.15));this.maxHealth=this.health;this.originalSpeed = type.speed; this.speed=type.speed;this.color=type.color;this.size=type.size;this.value=type.value;this.canAttackTowers=type.canAttackTowers||false;this.attackDamage=type.attackDamage||0;this.attackRange=type.attackRange||TILE_SIZE*0.5;this.attackCooldownBase=type.attackCooldownBase||60;this.attackCooldown=0;this.targetTower=null;this.isFlying = type.isFlying || false; this.isStealth = type.isStealth || false; this.isStealthed = false; this.stealthTimer = type.visibleDuration || 0; this.slowTimer = 0; this.path=getAStarPath(ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y, null, this.isFlying);this.pathIndex=0;if(this.path.length===0)console.warn("Enemy spawned with no path!");}findTowerToAttack(){if(!this.canAttackTowers||globalWaveCounter<WAVE_ENEMY_ATTACKS_TOWERS)return null;let closestDist=this.attackRange;let potentialTarget=null;for(const tower of towers){const dist=getDistance({x:this.pixelX,y:this.pixelY},{x:tower.pixelX,y:tower.pixelY})-tower.size/2;if(dist<closestDist){closestDist=dist;potentialTarget=tower;}}return potentialTarget;}
+                updateStealth() { if (!this.type.isStealth) return; this.stealthTimer--; if (this.stealthTimer <= 0) { this.isStealthed = !this.isStealthed; this.stealthTimer = this.isStealthed ? this.type.stealthDuration : this.type.visibleDuration; } }
+                updateSlow() { if (this.slowTimer > 0) { this.slowTimer--; if (this.slowTimer === 0) { this.speed = this.originalSpeed; } } }
+                applySlow(factor, duration) { this.speed = this.originalSpeed * factor; this.slowTimer = Math.max(this.slowTimer, duration); } // Apply strongest/longest slow
+                move(){
+                    this.updateStealth(); this.updateSlow();
+                    if(this.attackCooldown>0)this.attackCooldown--;
+                    const currentTileX = Math.floor(this.pixelX / TILE_SIZE); const currentTileY = Math.floor(this.pixelY / TILE_SIZE);
+                    const gateCenter = {x: HOME_PORTAL_POS.x * TILE_SIZE + TILE_SIZE/2, y: HOME_PORTAL_POS.y * TILE_SIZE + TILE_SIZE/2};
+                    const distToGate = getDistance({x: this.pixelX, y: this.pixelY}, gateCenter);
+                    if (this.canAttackTowers && gateHealth > 0 && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS && distToGate <= this.attackRange + TILE_SIZE * 0.5) { if (this.attackCooldown <= 0) { gateHealth -= this.attackDamage; this.takeDamage(GATE_DAMAGE_PER_HIT); this.attackCooldown = this.attackCooldownBase; createImpactEffect(gateCenter.x, gateCenter.y,'white',4,6); if (gateHealth <= 0) { gateHealth = 0; showMessage("The Gate has fallen!","error",3000); createImpactEffect(gateCenter.x, gateCenter.y,'grey',20,30); } updateUI();} if (this.health <= 0) return; return; }
+                    if(this.canAttackTowers && globalWaveCounter >= WAVE_ENEMY_ATTACKS_TOWERS){ if(!this.targetTower || this.targetTower.health <= 0) this.targetTower = this.findTowerToAttack(); if(this.targetTower && this.attackCooldown <= 0){ const distToTargetTower = getDistance({x:this.pixelX, y:this.pixelY}, {x:this.targetTower.pixelX, y:this.targetTower.pixelY}); if(distToTargetTower <= this.attackRange + this.targetTower.size / 2){ this.targetTower.takeDamage(this.attackDamage); this.attackCooldown = this.attackCooldownBase; createImpactEffect(this.targetTower.pixelX, this.targetTower.pixelY, 'orange', 3, 5); return; } else { this.targetTower = null; } } }
+                    if(this.path.length === 0 || this.pathIndex >= this.path.length){ if(currentTileX === HOME_PORTAL_POS.x && currentTileY === HOME_PORTAL_POS.y) this.reachHome(); else { this.path = getAStarPath(currentTileX, currentTileY, HOME_PORTAL_POS.x, HOME_PORTAL_POS.y, null, this.isFlying); this.pathIndex = 0; } return; }
+                    const targetPixel = this.path[this.pathIndex]; const dx = targetPixel.x - this.pixelX; const dy = targetPixel.y - this.pixelY; const distance = Math.sqrt(dx * dx + dy * dy);
+                    let nextX = this.pixelX; let nextY = this.pixelY; if (distance > 0) { nextX += (dx / distance) * this.speed; nextY += (dy / distance) * this.speed; }
+                    const nextTileX = Math.floor(nextX / TILE_SIZE); const nextTileY = Math.floor(nextY / TILE_SIZE);
+                    if (gateHealth > 0 && nextTileX === HOME_PORTAL_POS.x && nextTileY === HOME_PORTAL_POS.y) { if (!this.canAttackTowers) { this.reachHome(); return; } return; }
+                    if(distance < this.speed){ this.pixelX = targetPixel.x; this.pixelY = targetPixel.y; this.pathIndex++; if(this.pathIndex >= this.path.length){ const finalTileX = Math.floor(this.pixelX / TILE_SIZE); const finalTileY = Math.floor(this.pixelY / TILE_SIZE); if(finalTileX === HOME_PORTAL_POS.x && finalTileY === HOME_PORTAL_POS.y) this.reachHome(); } } else { this.pixelX = nextX; this.pixelY = nextY; }
+                }
+                reachHome(){if(gateHealth<=0){lives--;score=Math.max(0,score-25);createImpactEffect(this.pixelX,this.pixelY,'rgba(255,0,0,0.7)',10,20);updateUI();if(lives<=0)triggerGameOver("Home Portal Overrun!");}else{createImpactEffect(this.pixelX,this.pixelY,'rgba(200,200,200,0.5)',5,8);}this.remove();}
+                draw(){ ctx.globalAlpha = this.isStealthed ? 0.3 : 1.0; ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();if(this.isFlying){/* Optional: Add wings or shadow */ ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(this.pixelX, this.pixelY + this.size * 1.2, this.size * 0.8, this.size * 0.3, 0, 0, Math.PI * 2); ctx.fill();} ctx.globalAlpha = 1.0; if(this.health<this.maxHealth){const healthBarWidth=this.size*2;const healthBarHeight=5;ctx.fillStyle='red';ctx.fillRect(this.pixelX-this.size,this.pixelY-this.size-10,healthBarWidth,healthBarHeight);ctx.fillStyle='green';ctx.fillRect(this.pixelX-this.size,this.pixelY-this.size-10,healthBarWidth*(this.health/this.maxHealth),healthBarHeight);} if (this.slowTimer > 0) { ctx.fillStyle = 'rgba(0, 150, 255, 0.5)'; ctx.beginPath(); ctx.arc(this.pixelX, this.pixelY, this.size + 2, 0, Math.PI * 2); ctx.fill(); } } // Draw slow effect
+                takeDamage(amount){ if (this.health <= 0) return; this.health-=amount;createImpactEffect(this.pixelX,this.pixelY,this.color,5,10);if(this.health<=0){energy+=this.value;score+=this.value*2;updateUI();this.remove();createImpactEffect(this.pixelX,this.pixelY,'gold',8,15);}} // Gain Energy on kill
+                remove(){enemies=enemies.filter(e=>e!==this);enemiesOnBoard=Math.max(0,enemiesOnBoard-1);updateCallWaveButton();}}
+            
+            class Soldier {constructor(type){this.pixelX=(HOME_PORTAL_POS.x-1)*TILE_SIZE+TILE_SIZE/2;this.pixelY=HOME_PORTAL_POS.y*TILE_SIZE+TILE_SIZE/2;this.type=type;this.speed=type.speed;this.color=type.color;this.size=type.size;this.rewardMoney=type.rewardMoney;this.rewardScore=type.rewardScore;this.path=getAStarPath(HOME_PORTAL_POS.x-1,HOME_PORTAL_POS.y,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,null,false);this.pathIndex=0;if(this.path.length===0)console.warn("Soldier spawned with no path!");}move(){if(this.path.length===0||this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===ENEMY_PORTAL_POS.x&&currentTileY===ENEMY_PORTAL_POS.y)this.reachEnemyPortal();else{this.path=getAStarPath(currentTileX,currentTileY,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,null,false);this.pathIndex=0;if(this.path.length===0)this.remove();}return;}const targetPixel=this.path[this.pathIndex];const dx=targetPixel.x-this.pixelX;const dy=targetPixel.y-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed){this.pixelX=targetPixel.x;this.pixelY=targetPixel.y;this.pathIndex++;if(this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===ENEMY_PORTAL_POS.x&&currentTileY===ENEMY_PORTAL_POS.y)this.reachEnemyPortal();}}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}reachEnemyPortal(){energy+=this.rewardMoney;score+=this.rewardScore;createImpactEffect(this.pixelX,this.pixelY,this.color,10,15);updateUI();this.remove();}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.moveTo(this.pixelX+this.size,this.pixelY);ctx.lineTo(this.pixelX-this.size/2,this.pixelY-this.size/2);ctx.lineTo(this.pixelX-this.size/2,this.pixelY+this.size/2);ctx.closePath();ctx.fill();ctx.strokeStyle='black';ctx.lineWidth=1;ctx.stroke();}remove(){soldiers=soldiers.filter(s=>s!==this);}}
+            class Refugee {constructor(type){const edge=Math.random()<0.5?'top':'bottom';this.pixelX=Math.floor(Math.random()*GRID_WIDTH)*TILE_SIZE+TILE_SIZE/2;this.pixelY=(edge==='top'?0:CANVAS_HEIGHT-1)+(edge==='top'?TILE_SIZE/2:-TILE_SIZE/2);this.type=type;this.speed=type.speed;this.color=type.color;this.size=type.size;this.lifeReward=type.lifeReward;this.path=getAStarPath(Math.floor(this.pixelX/TILE_SIZE),Math.floor(this.pixelY/TILE_SIZE),HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null,true);this.pathIndex=0;if(this.path.length===0)console.warn("Refugee spawned with no path!");}move(){if(this.path.length===0||this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y){this.reachHomePortal();}else{this.path=getAStarPath(currentTileX,currentTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,null,true);this.pathIndex=0;if(this.path.length===0)this.remove();}return;}const targetPixel=this.path[this.pathIndex];const dx=targetPixel.x-this.pixelX;const dy=targetPixel.y-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed){this.pixelX=targetPixel.x;this.pixelY=targetPixel.y;this.pathIndex++;if(this.pathIndex>=this.path.length){const currentTileX=Math.floor(this.pixelX/TILE_SIZE);const currentTileY=Math.floor(this.pixelY/TILE_SIZE);if(currentTileX===HOME_PORTAL_POS.x&&currentTileY===HOME_PORTAL_POS.y)this.reachHomePortal();}}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}reachHomePortal(){lives=Math.min(MAX_LIVES,lives+this.lifeReward);score+=25;createImpactEffect(this.pixelX,this.pixelY,this.color,10,15);updateUI();this.remove();}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#333';ctx.lineWidth=1;ctx.stroke();}remove(){refugees=refugees.filter(r=>r!==this);}}
+            class Obstacle{constructor(tileX,tileY,type){this.tileX=tileX;this.tileY=tileY;this.x=tileX*TILE_SIZE+TILE_SIZE/2;this.y=tileY*TILE_SIZE+TILE_SIZE/2;this.type=type;this.size=type.size;this.color=type.color;}draw(){ctx.fillStyle=this.color;ctx.fillRect(this.tileX*TILE_SIZE,this.tileY*TILE_SIZE,this.size,this.size);ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.strokeRect(this.tileX*TILE_SIZE,this.tileY*TILE_SIZE,this.size,this.size);}}
+            class Tower{constructor(pixelX,pixelY,towerTypeData){this.pixelX=pixelX;this.pixelY=pixelY;this.tileX=Math.floor(pixelX/TILE_SIZE);this.tileY=Math.floor(pixelY/TILE_SIZE);this.towerTypeData=towerTypeData;this.level=0;this.size=towerTypeData.size;this.color=towerTypeData.color;this.projectileColor=towerTypeData.projectileColor;this.projectileSpeed=towerTypeData.projectileSpeed;this.projectileSize=towerTypeData.projectileSize;this.fireCooldown=0;this.target=null;this.totalInvested=towerTypeData.cost;this.baseHealth=towerTypeData.baseHealth;this.canTargetFlying = towerTypeData.canTargetFlying === undefined ? true : towerTypeData.canTargetFlying; // Default true
+                this.canSeeStealth = towerTypeData.canSeeStealth === undefined ? false : towerTypeData.canSeeStealth; // Default false
+                this.isAura = towerTypeData.isAura || false;
+                this.buffRadius = towerTypeData.buffRadius || 0;
+                this.buffAmount = towerTypeData.buffAmount || 1;
+                this.buffType = towerTypeData.buffType || null;
+                this.buffCooldownTime = towerTypeData.buffCooldown || 10;
+                this.currentBuffCooldown = 0;
+                this.appliedBuffs = new Map(); // Store towers currently being buffed by this aura tower {tower: expirationTime}
+                this.activeBuffs = {}; // Store buffs received from other towers {buffType: {amount:X, sourceId: Y}}
+                this.updateStatsToLevel();}updateStatsToLevel(){const levelStats=this.towerTypeData.levels[this.level];this.damage=levelStats.damage;this.range=levelStats.range;this.fireRate=levelStats.fireRate;this.upgradeCost=levelStats.upgradeCost;this.maxHealth=this.baseHealth+(levelStats.healthBonus||0);if(this.health===undefined||this.level===0){this.health=this.maxHealth;}else{this.health=Math.min(this.maxHealth,this.health+(levelStats.healthBonus-(this.towerTypeData.levels[this.level-1]?.healthBonus||0)));this.health=Math.min(this.maxHealth,this.health);}if(this.towerTypeData.name==="Splash"){this.splashRadius=levelStats.splashRadius||this.towerTypeData.splashRadius;this.splashDamageFactor=levelStats.splashDamageFactor||this.towerTypeData.splashDamageFactor;}if(this.isAura){this.buffRadius=levelStats.range||this.buffRadius;this.buffAmount=levelStats.buffAmount||this.buffAmount;}}getSellValue(){return Math.floor(this.totalInvested*0.7);}
+                upgrade(){
+                    const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
+                    if(this.level >= this.towerTypeData.levels.length - 1){ showMessage("Max level!", "info"); return; }
+                    if(energy < this.upgradeCost){ showMessage("Not enough Energy!", "error"); return; } 
+                    if (constructionSites.some(site => site.isUpgrade && site.itemData === this) || buildQueue.some(task => task.type === 'upgrade' && task.itemData === this)) { showMessage("Upgrade already in progress/queued!", "info"); return; }
+                    energy -= this.upgradeCost; 
+                    buildQueue.push({ type: 'upgrade', itemData: this, tileX: this.tileX, tileY: this.tileY });
+                    updateUI(); updateBuildButtons(); showMessage("Upgrade Queued!", "info");
+                    if (availableWorker) { checkBuildQueue(availableWorker); }
+                    selectedTower = null; updateBottomStatsPanel();
+                }
+                takeDamage(amount){this.health-=amount;createImpactEffect(this.pixelX,this.pixelY,'rgba(255,165,0,0.8)',3,4);if(this.health<=0)this.destroy();updateBottomStatsPanel();}
+                destroy(){ createImpactEffect(this.pixelX,this.pixelY,'grey',10,20); towers.forEach(t => t.removeBuffSource(this)); towers=towers.filter(t=>t!==this); if(selectedTower===this){selectedTower=null;updateBottomStatsPanel();} } // Remove buffs on destroy
+                draw(){ ctx.globalAlpha = this.activeBuffs['damage'] ? 1.2 : 1.0; // Example: slight glow if damage buffed
+                    ctx.fillStyle=this.color;ctx.fillRect(this.pixelX-this.size/2,this.pixelY-this.size/2,this.size,this.size); ctx.globalAlpha = 1.0; if(this.health<this.maxHealth){const healthBarHeight=6;const healthBarWidth=this.size;const barY=this.pixelY-this.size/2-healthBarHeight-2;ctx.fillStyle='red';ctx.fillRect(this.pixelX-healthBarWidth/2,barY,healthBarWidth,healthBarHeight);ctx.fillStyle='green';ctx.fillRect(this.pixelX-healthBarWidth/2,barY,healthBarWidth*(this.health/this.maxHealth),healthBarHeight);ctx.strokeStyle='black';ctx.strokeRect(this.pixelX-healthBarWidth/2,barY,healthBarWidth,healthBarHeight);}if(selectedTower===this){ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.range,0,Math.PI*2);ctx.stroke();ctx.fillStyle='rgba(0,255,0,0.7)';ctx.beginPath();ctx.arc(this.pixelX+UPGRADE_ICON_OFFSET_X,this.pixelY+TOWER_ACTION_ICON_OFFSET_Y,TOWER_ACTION_ICON_RADIUS,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.font="bold 12px 'Press Start 2P'";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("U",this.pixelX+UPGRADE_ICON_OFFSET_X,this.pixelY+TOWER_ACTION_ICON_OFFSET_Y+1);ctx.fillStyle='rgba(255,0,0,0.7)';ctx.beginPath();ctx.arc(this.pixelX+SELL_ICON_OFFSET_X,this.pixelY+TOWER_ACTION_ICON_OFFSET_Y,TOWER_ACTION_ICON_RADIUS,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.fillText("S",this.pixelX+SELL_ICON_OFFSET_X,this.pixelY+TOWER_ACTION_ICON_OFFSET_Y+1);}ctx.fillStyle="rgba(0,0,0,0.5)";ctx.fillRect(this.pixelX-this.size/2,this.pixelY+this.size/2-10,this.size,10);ctx.fillStyle="white";ctx.font="8px 'Press Start 2P'";ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(`L${this.level+1}`,this.pixelX,this.pixelY+this.size/2-1);if(this.target){ctx.strokeStyle='#A0AEC0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(this.pixelX,this.pixelY);ctx.lineTo(this.target.pixelX,this.target.pixelY);ctx.stroke();} if (this.isAura) { ctx.strokeStyle = 'rgba(246, 131, 179, 0.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.pixelX, this.pixelY, this.buffRadius, 0, Math.PI*2); ctx.stroke(); } } // Draw aura range
+                findTarget(){ if (this.isAura) return; if(this.target&&(this.target.health<=0||getDistance({x:this.pixelX,y:this.pixelY},{x:this.target.pixelX,y:this.target.pixelY}) > this.range || (this.target.isStealthed && !this.canSeeStealth) || (this.target.isFlying && !this.canTargetFlying) ))this.target=null; if(!this.target){let closestEnemy=null;let minDistance=this.range;for(const enemy of enemies){ if(enemy.isStealthed && !this.canSeeStealth) continue; if(enemy.isFlying && !this.canTargetFlying) continue; const distance=getDistance({x:this.pixelX,y:this.pixelY},{x:enemy.pixelX,y:enemy.pixelY});if(distance<minDistance){minDistance=distance;closestEnemy=enemy;}}this.target=closestEnemy;}}
+                applyBuffs() { if (!this.isAura || this.currentBuffCooldown > 0) return; this.currentBuffCooldown = this.buffCooldownTime; towers.forEach(targetTower => { if (targetTower !== this && !targetTower.isAura) { const dist = getDistance(this, targetTower); if (dist <= this.buffRadius) targetTower.receiveBuff(this.buffType, this.buffAmount, this.id); } }); }
+                receiveBuff(type, amount, sourceId) { this.activeBuffs[type] = { amount, sourceId }; }
+                removeBuffSource(sourceTower) { for (const type in this.activeBuffs) { if (this.activeBuffs[type].sourceId === sourceTower.id) delete this.activeBuffs[type]; } }
+                getStat(statName) { const baseValue = this[statName]; const buff = this.activeBuffs[statName]; return buff ? baseValue * buff.amount : baseValue; } // Apply buff if exists
+                shoot(){ if (this.isAura) return; if(this.target&&this.fireCooldown<=0){ const projectileDamage = this.getStat('damage'); const projectile = new Projectile(this.pixelX,this.pixelY,this.target,projectileDamage,this.projectileSpeed,this.projectileColor,this.projectileSize,this.towerTypeData.name==="Splash"?this.splashRadius:0,this.towerTypeData.name==="Splash"?this.splashDamageFactor:0); if (this.towerTypeData.name === "Slow") { projectile.slowFactor = this.towerTypeData.slowFactor; projectile.slowDuration = this.towerTypeData.slowDuration; } projectiles.push(projectile); this.fireCooldown=this.getStat('fireRate');}} // Use buffed fireRate
+                update(){ if (this.isAura) { if(this.currentBuffCooldown > 0) this.currentBuffCooldown--; this.applyBuffs(); } else { if(this.fireCooldown>0)this.fireCooldown--;this.findTarget();this.shoot();} }}
+            
+            class Projectile{constructor(x,y,target,damage,speed,color,size,splashRadius=0,splashDamageFactor=0, isCastleShot = false){this.pixelX=x;this.pixelY=y;this.target=target;this.damage=damage;this.speed=speed;this.color=color;this.size=size;this.splashRadius=splashRadius;this.splashDamageFactor=splashDamageFactor; this.isCastleShot = isCastleShot; this.slowFactor = null; this.slowDuration = 0;}move(){if(!this.target||this.target.health<=0){this.remove();return;}const dx=this.target.pixelX-this.pixelX;const dy=this.target.pixelY-this.pixelY;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<this.speed+this.target.size/2){this.target.takeDamage(this.damage); if(this.slowFactor) this.target.applySlow(this.slowFactor, this.slowDuration); if(this.splashRadius>0){enemies.forEach(enemy=>{if(enemy!==this.target&&getDistance({x:this.target.pixelX,y:this.target.pixelY},{x:enemy.pixelX,y:enemy.pixelY})<=this.splashRadius){enemy.takeDamage(this.damage*this.splashDamageFactor); if(this.slowFactor) enemy.applySlow(this.slowFactor, this.slowDuration); }});}this.remove();}else{this.pixelX+=(dx/distance)*this.speed;this.pixelY+=(dy/distance)*this.speed;}}draw(){ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.pixelX,this.pixelY,this.size,0,Math.PI*2);ctx.fill();}remove(){projectiles=projectiles.filter(p=>p!==this);}}
+            class Particle{constructor(x,y,color,size,duration,speedX,speedY){this.x=x;this.y=y;this.color=color;this.size=size;this.duration=duration;this.life=duration;this.speedX=speedX;this.speedY=speedY;}update(){this.x+=this.speedX;this.y+=this.speedY;this.life--;this.size*=0.98;}draw(){ctx.globalAlpha=Math.max(0,this.life/this.duration);ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.x,this.y,Math.max(0,this.size),0,Math.PI*2);ctx.fill();ctx.globalAlpha=1.0;}}
+            function createImpactEffect(x,y,baseColor='yellow',count=5,size=3){for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2;const speed=Math.random()*2+1;particles.push(new Particle(x,y,baseColor,Math.random()*size+size/2,Math.random()*20+10,Math.cos(angle)*speed,Math.sin(angle)*speed));}}
+
+            // --- Game Logic Functions ---
+            function spawnPlasmaCrystals(count) {
+                energyCrystals = []; // Renamed array
+                let placed = 0;
+                let attempts = 0;
+                const maxAttempts = count * 10; 
+
+                while (placed < count && attempts < maxAttempts) {
+                    attempts++;
+                    const tileX = Math.floor(Math.random() * GRID_WIDTH);
+                    const tileY = Math.floor(Math.random() * GRID_HEIGHT);
+
+                    if (canPlaceItem(tileX, tileY, {})) { 
+                        if (Math.abs(tileX - ENEMY_PORTAL_POS.x) > 2 && Math.abs(tileX - HOME_PORTAL_POS.x) > 2) {
+                            if (!energyCrystals.some(c => c.x === tileX && c.y === tileY)) {
+                                energyCrystals.push({ x: tileX, y: tileY, assignedWorkerId: null });
+                                placed++;
+                            }
+                        }
+                    }
+                }
+                if(placed < count) console.warn(`Could only place ${placed}/${count} energy crystals.`);
+            }
+
+            // Removed findWorkForIdleWorker as harvesting is now manual
+
+            function queueEnemiesForWave(waveNum){
+                const stageConfig = STAGES[currentStageIndex];
+                const difficulty = stageConfig.difficultyMultiplier * (1 + globalWaveCounter * 0.02); 
+                const waveConfig={
+                    normal: Math.floor((5 + currentWaveInStage * 2) * difficulty),
+                    fast: currentWaveInStage > 1 ? Math.floor(((currentWaveInStage - 1) * 2 + Math.floor(currentWaveInStage/3)) * difficulty) : 0,
+                    strong: currentWaveInStage > 2 ? Math.floor(((currentWaveInStage - 2) * 1 + Math.floor(currentWaveInStage/4)) * difficulty) : 0,
+                    armored: currentWaveInStage > 3 ? Math.floor(((currentWaveInStage - 3) * 1 + Math.floor(currentWaveInStage/5)) * difficulty) : 0,
+                    swarm: currentWaveInStage > 1 ? Math.floor(((currentWaveInStage - 1) * 5 + Math.floor(currentWaveInStage/2)) * difficulty) : 0,
+                    flyer: currentWaveInStage > 4 ? Math.floor(((currentWaveInStage - 4) * 2) * difficulty) : 0, // Add Flyers later
+                    stealth: currentWaveInStage > 6 ? Math.floor(((currentWaveInStage - 6) * 1) * difficulty) : 0 // Add Stealth later
+                };
+                let newEnemiesForQueue=[];
+                for(let i=0;i<waveConfig.normal;i++)newEnemiesForQueue.push(ENEMY_TYPES.NORMAL);
+                for(let i=0;i<waveConfig.fast;i++)newEnemiesForQueue.push(ENEMY_TYPES.FAST);
+                for(let i=0;i<waveConfig.strong;i++)newEnemiesForQueue.push(ENEMY_TYPES.STRONG);
+                for(let i=0;i<waveConfig.armored;i++)newEnemiesForQueue.push(ENEMY_TYPES.ARMORED);
+                for(let i=0;i<waveConfig.swarm;i++)newEnemiesForQueue.push(ENEMY_TYPES.SWARM);
+                for(let i=0;i<waveConfig.flyer;i++)newEnemiesForQueue.push(ENEMY_TYPES.FLYER);
+                for(let i=0;i<waveConfig.stealth;i++)newEnemiesForQueue.push(ENEMY_TYPES.STEALTH);
+                newEnemiesForQueue.sort(()=>Math.random()-0.5);
+                enemySpawnQueue.push(...newEnemiesForQueue);
+                enemiesOnBoard+=newEnemiesForQueue.length;
+            }
+
+            function startNextWaveLogic(isEarly = false) {
+                 if (waveCountdownActive) stopWaveCountdown();
+
+                 if (isEarly) {
+                    let bonus = EARLY_CALL_BONUS_BASE + globalWaveCounter * 3; 
+                    energy += bonus; // Gain Energy
+                    showMessage(`Early Wave Bonus: +${bonus} Energy!`, "success", 1500);
+                }
+
+                currentWaveInStage++;
+                globalWaveCounter++; // Increment global counter
+
+                if (currentWaveInStage > STAGES[currentStageIndex].waves) {
+                    // Stage Clear
+                    energy += STAGES[currentStageIndex].stageClearBonus; // Gain Energy
+                    score += STAGES[currentStageIndex].stageClearBonus * 2;
+                    showMessage(`Stage ${currentStageIndex + 1} Cleared! Bonus: ${STAGES[currentStageIndex].stageClearBonus} Energy`, "success", 3000);
+                    
+                    currentStageIndex++;
+                    if (currentStageIndex >= STAGES.length) {
+                        // Game potentially won, but wait for enemies to clear
+                    } else {
+                        currentWaveInStage = 1; // Start next stage
+                        gateHealth = Math.min(GATE_MAX_HEALTH, gateHealth + GATE_MAX_HEALTH * 0.25); 
+                        spawnPlasmaCrystals(INITIAL_CRYSTALS + currentStageIndex * 2); // Spawn more crystals for next stage
+                    }
+                }
+                
+                // Check for actual game win only after potentially advancing stage
+                if (currentStageIndex >= STAGES.length) {
+                    // Don't queue more enemies if all stages are done
+                    updateUI(); 
+                    updateCallWaveButton(); // Update button text (likely to "You Won!")
+                    return; // Stop further processing if game should end
+                }
+
+                queueEnemiesForWave(globalWaveCounter); // Queue enemies for the new wave
+                updateUI();
+                updateCallWaveButton();
+            }
+
+            function handleCallWave(){ // This button now handles "Start Wave 1" and "Start Early"
+                if(gameOver||gameWon) { resetGame(); return; }
+                
+                if (globalWaveCounter === 0) { // Starting wave 1
+                    startNextWaveLogic(false);
+                } else if (waveCountdownActive) { // Starting early
+                   startNextWaveLogic(true);
+                } 
+                // If countdown isn't active and it's not wave 0, do nothing (wait for auto-start)
+            }
+
+            function startWaveCountdown() {
+                waveCountdownActive = true;
+                waveCountdownTimer = WAVE_START_COUNTDOWN_SECONDS;
+                countdownDisplay.classList.remove('hidden');
+                countdownTimerSpan.textContent = waveCountdownTimer;
+                let bonus = EARLY_CALL_BONUS_BASE + globalWaveCounter * 3;
+                callWaveButton.textContent = `Start Early! (+${bonus}⚡)`; // Use Energy symbol
+                callWaveButton.disabled = false;
+                callWaveButton.classList.remove('disabled');
+
+                if(waveIntervalId) clearInterval(waveIntervalId); // Clear existing interval if any
+                waveIntervalId = setInterval(() => {
+                    waveCountdownTimer--;
+                    countdownTimerSpan.textContent = waveCountdownTimer;
+                    if (waveCountdownTimer <= 0) {
+                        stopWaveCountdown();
+                        startNextWaveLogic(false); // Start next wave automatically
+                    }
+                }, 1000);
+            }
+
+            function stopWaveCountdown() {
+                if(waveIntervalId) clearInterval(waveIntervalId);
+                waveIntervalId = null;
+                waveCountdownActive = false;
+                countdownDisplay.classList.add('hidden');
+                // Reset button text after countdown finishes or is interrupted
+                 updateCallWaveButton(); 
+            }
+
+            function updateCallWaveButton(){
+                 if(gameOver||gameWon){
+                    callWaveButton.classList.add('disabled');callWaveButton.disabled=true;
+                    callWaveButton.textContent=(gameWon?"You Won!":"Game Over");
+                } else if (waveCountdownActive) {
+                     let bonus = EARLY_CALL_BONUS_BASE + globalWaveCounter * 3;
+                     callWaveButton.textContent = `Start Early! (+${bonus}⚡)`; // Use Energy symbol
+                     callWaveButton.disabled = false; callWaveButton.classList.remove('disabled');
+                } else if (globalWaveCounter === 0) {
+                     callWaveButton.textContent = `Start Wave 1`;
+                     callWaveButton.disabled = false; callWaveButton.classList.remove('disabled');
+                } else if (enemies.length === 0 && enemySpawnQueue.length === 0 && constructionSites.length === 0 && buildQueue.length === 0) { // Also check queues/construction
+                    // Wave cleared, waiting for countdown or early start
+                     callWaveButton.textContent = `Next Wave Ready`; // Or show countdown text
+                     callWaveButton.disabled = true; // Disable until countdown starts or is clicked early
+                     callWaveButton.classList.add('disabled');
+                     // Start countdown automatically if not already active
+                     if (!waveCountdownActive && currentStageIndex < STAGES.length) { 
+                         startWaveCountdown();
+                     }
+                }
+                 else { // Wave in progress, cannot call early yet
+                    callWaveButton.textContent = `Wave ${globalWaveCounter} in Progress`;
+                    callWaveButton.disabled = true; callWaveButton.classList.add('disabled');
+                }
+            }
+            function handleEnemySpawning(){
+                if(enemySpawnQueue.length > 0 && gameLoopTicker % (Math.max(10, 40 - Math.floor(globalWaveCounter/2))) === 0){
+                    const enemyTypeToSpawn = enemySpawnQueue.shift();
+                    if(enemyTypeToSpawn){
+                        const newEnemy = new Enemy(enemyTypeToSpawn);
+                        if(newEnemy.path.length > 0){
+                            enemies.push(newEnemy);
+                            createImpactEffect(ENEMY_PORTAL_POS.x * TILE_SIZE + TILE_SIZE / 2, ENEMY_PORTAL_POS.y * TILE_SIZE + TILE_SIZE / 2, 'purple', 7, 15);
+                        } else {
+                            console.warn("Spawn Fail: No path for", enemyTypeToSpawn.name);
+                            enemiesOnBoard = Math.max(0, enemiesOnBoard - 1);
+                            updateCallWaveButton();
+                        }
+                    }
+                }
+                // Check for game win condition moved to handleEnemySpawning completion check
+                 if (currentStageIndex >= STAGES.length && enemies.length === 0 && enemySpawnQueue.length === 0 && !gameWon && !gameOver) {
+                    triggerGameWin();
+                }
+            }
+            
+            function handleRefugeeSpawning(deltaTime) {
+                 if (gameOver || gameWon || globalWaveCounter === 0) return; // Don't spawn before wave 1
+                 refugeeSpawnTimer -= deltaTime;
+                 if (refugeeSpawnTimer <= 0) {
+                     refugees.push(new Refugee(REFUGEE_TYPES.REFUGEE));
+                     refugeeSpawnTimer = REFUGEE_SPAWN_INTERVAL * (0.8 + Math.random() * 0.4); 
+                 }
+            }
+            
+            function handleConstructionSites(currentTime) {
+                 for (let i = constructionSites.length - 1; i >= 0; i--) {
+                     const site = constructionSites[i];
+                     // Only check endTime if it has been set (worker has arrived and started timer)
+                     if (site.endTime && currentTime >= site.endTime) {
+                         // Find the worker assigned to this site
+                         const worker = workers.find(w => w.id === site.workerId);
+                         
+                         if (site.isUpgrade) {
+                             const towerToUpgrade = site.itemData; 
+                             const actualTower = towers.find(t => t === towerToUpgrade);
+                             if (actualTower) {
+                                 // Finalize upgrade stats
+                                 const oldMaxHealth = actualTower.maxHealth; 
+                                 // Level was already incremented when upgrade started in Tower.upgrade
+                                 actualTower.updateStatsToLevel(); // Update stats based on the *new* level
+                                 actualTower.health += (actualTower.maxHealth - oldMaxHealth);
+                                 actualTower.health = Math.min(actualTower.health, actualTower.maxHealth); 
+                                 showMessage("Upgrade Complete!", "success", 1000);
+                             }
+                         } else {
+                             // Place the new item
+                             const itemData = site.itemData;
+                             const itemPixelX = site.tileX * TILE_SIZE + TILE_SIZE / 2;
+                             const itemPixelY = site.tileY * TILE_SIZE + TILE_SIZE / 2;
+                             if (itemData.isTower) towers.push(new Tower(itemPixelX, itemPixelY, itemData));
+                             else obstacles.push(new Obstacle(site.tileX, site.tileY, itemData));
+                             showMessage("Construction Complete!", "success", 1000);
+                             // Re-path units after item is placed
+                             enemies.forEach(enemy=>{const distToNewItem=getDistance({x:enemy.pixelX,y:enemy.pixelY},{x:itemPixelX,y:itemPixelY});if(distToNewItem<TILE_SIZE*4){const currentEnemyTileX=Math.floor(enemy.pixelX/TILE_SIZE);const currentEnemyTileY=Math.floor(enemy.pixelY/TILE_SIZE);enemy.path=getAStarPath(currentEnemyTileX,currentEnemyTileY,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y);enemy.pathIndex=0;if(enemy.path.length===0)console.log("Existing enemy re-path failed after placement.",enemy);}});
+                             soldiers.forEach(soldier=>{const distToNewItem=getDistance({x:soldier.pixelX,y:soldier.pixelY},{x:itemPixelX,y:itemPixelY});if(distToNewItem<TILE_SIZE*4){const currentSoldierTileX=Math.floor(soldier.pixelX/TILE_SIZE);const currentSoldierTileY=Math.floor(soldier.pixelY/TILE_SIZE);soldier.path=getAStarPath(currentSoldierTileX,currentSoldierTileY,ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y, null, false);soldier.pathIndex=0;if(soldier.path.length===0)console.log("Existing soldier re-path failed.",soldier);}});
+                         }
+
+                         // Worker finished task. Set to returning, check queue immediately.
+                         if (worker) {
+                             worker.state = 'returning'; // Worker is logically available now
+                             worker.targetX = WORKER_HOME_POS.x;
+                             worker.targetY = WORKER_HOME_POS.y;
+                             worker.constructionSiteId = null; 
+                             updateUI(); 
+                             updateBuildButtons();
+
+                             // Check build queue immediately after finishing a task
+                             checkBuildQueue(worker); 
+
+                         } else {
+                             console.error("Could not find worker for completed site:", site.id);
+                         }
+
+                         constructionSites.splice(i, 1); // Remove finished site
+                     }
+                 }
+            }
+
+            // Function to check and assign tasks from the queue
+            function checkBuildQueue(worker) {
+                if (buildQueue.length > 0) {
+                    const nextTask = buildQueue.shift(); // Get the first task
+                    
+                    // Create a new construction site object for the queued task
+                    const siteId = `${nextTask.type}-${nextTask.tileX}-${nextTask.tileY}-${Date.now()}`;
+                    const newSite = {
+                        id: siteId,
+                        tileX: nextTask.tileX,
+                        tileY: nextTask.tileY,
+                        endTime: null, // Will be set when worker arrives
+                        itemData: nextTask.itemData,
+                        isUpgrade: nextTask.type === 'upgrade',
+                        workerId: null
+                    };
+                    constructionSites.push(newSite);
+
+                    // Assign the worker (this will interrupt the 'returning' state if applicable)
+                    worker.assignTask(newSite); 
+                    // showMessage("Worker assigned next task from queue!", "info", 1000); // Maybe too noisy
+                }
+                // If queue is empty, worker starts returning (or stays idle if already home)
+                 // No automatic harvesting check here anymore
+            }
+
+
+            function updateUI(){
+                // Count workers that are idle OR returning as available
+                const availableWorkerCount = workers.filter(w => w.state === 'idle' || w.state === 'returning').length;
+                energyDisplay.textContent = energy; // Use energy
+                livesDisplay.textContent = `${lives}/${MAX_LIVES}`; 
+                // Update Stage/Wave display
+                if (currentStageIndex < STAGES.length) {
+                    stageDisplay.textContent = currentStageIndex + 1;
+                    waveInStageDisplay.textContent = currentWaveInStage;
+                    wavesInStageDisplay.textContent = STAGES[currentStageIndex].waves;
+                } else { // Handle game won state display
+                     stageDisplay.textContent = "-";
+                     waveInStageDisplay.textContent = "-";
+                     wavesInStageDisplay.textContent = "-";
+                }
+                scoreDisplay.textContent = score;
+                workerDisplay.textContent = `${availableWorkerCount}/${workers.length}`; 
+                gateHealthDisplay.textContent = `${Math.max(0, gateHealth.toFixed(0))}/${GATE_MAX_HEALTH}`; 
+                castleLevelDisplay.textContent = castleLevel; 
+                upgradeCastleCostDisplay.textContent = (castleLevel < CASTLE_MAX_LEVEL) ? `⚡${castleUpgradeCost}` : "MAX"; // Use Energy symbol
+                upgradeWorkerCostDisplay.textContent = (workerLevel < WORKER_MAX_LEVEL) ? `⚡${workerUpgradeCost}` : "MAX"; // Update worker upgrade cost
+            } 
+            function updateBottomStatsPanel(){if(selectedTower){bottomStatsPanel.classList.remove('hidden');statsTowerType.textContent=selectedTower.towerTypeData.name;statsTowerLevel.textContent=selectedTower.level+1;statsTowerHealth.textContent=`${selectedTower.health.toFixed(0)}/${selectedTower.maxHealth.toFixed(0)}`;statsTowerDamage.textContent=selectedTower.damage.toFixed(1);statsTowerRange.textContent=selectedTower.range;statsTowerFireRate.textContent=(60/selectedTower.fireRate).toFixed(2)+"/s";statsUpgradeCost.textContent=(selectedTower.level<selectedTower.towerTypeData.levels.length-1)?`⚡${selectedTower.upgradeCost}`:"MAX";statsSellPrice.textContent=`⚡${selectedTower.getSellValue()}`;}else{bottomStatsPanel.classList.add('hidden');}} // Use Energy symbol
+            
+             function updateBuildButtons() {
+                const canAffordBasic = energy >= TOWER_TYPES.BASIC.cost; // Use energy
+                const canAffordSniper = energy >= TOWER_TYPES.SNIPER.cost;
+                const canAffordSplash = energy >= TOWER_TYPES.SPLASH.cost;
+                const canAffordSlow = energy >= TOWER_TYPES.SLOW.cost;
+                const canAffordBuff = energy >= TOWER_TYPES.BUFF.cost;
+                const canAffordObstacle = energy >= ITEMS.OBSTACLE.cost;
+                const canAffordReinforced = energy >= ITEMS.REINFORCED_OBSTACLE.cost;
+                const canAffordSoldier = energy >= SOLDIER_TYPES.SOLDIER.cost;
+                const canAffordCastleUpgrade = energy >= castleUpgradeCost;
+                const canAffordWorkerUpgrade = energy >= workerUpgradeCost;
+                
+                // Buttons are disabled only based on cost now
+                buyBasicTowerButton.disabled = !canAffordBasic;
+                buySniperTowerButton.disabled = !canAffordSniper;
+                buySplashTowerButton.disabled = !canAffordSplash;
+                buySlowTowerButton.disabled = !canAffordSlow;
+                buyBuffTowerButton.disabled = !canAffordBuff;
+                buyObstacleButton.disabled = !canAffordObstacle;
+                buyReinforcedObstacleButton.disabled = !canAffordReinforced;
+                spawnSoldierButton.disabled = !canAffordSoldier; 
+                upgradeCastleButton.disabled = !(canAffordCastleUpgrade && castleLevel < CASTLE_MAX_LEVEL);
+                upgradeWorkerButton.disabled = !(canAffordWorkerUpgrade && workerLevel < WORKER_MAX_LEVEL);
+
+
+                [buyBasicTowerButton, buySniperTowerButton, buySplashTowerButton, buySlowTowerButton, buyBuffTowerButton, buyObstacleButton, buyReinforcedObstacleButton, spawnSoldierButton, upgradeCastleButton, upgradeWorkerButton].forEach(button => {
+                    if (button.disabled) button.classList.add('disabled'); else button.classList.remove('disabled');
+                });
+                 if (castleLevel >= CASTLE_MAX_LEVEL) { 
+                     upgradeCastleCostDisplay.textContent = "MAX";
+                 } else {
+                     upgradeCastleCostDisplay.textContent = `⚡${castleUpgradeCost}`; 
+                 }
+                 if (workerLevel >= WORKER_MAX_LEVEL) {
+                     upgradeWorkerCostDisplay.textContent = "MAX";
+                 } else {
+                      upgradeWorkerCostDisplay.textContent = `⚡${workerUpgradeCost}`;
+                 }
+            }
+
+            function drawPortalsAndGate(ticker) { /* Remains the same as previous version */
+                const enemyPortalX = ENEMY_PORTAL_POS.x * TILE_SIZE + TILE_SIZE / 2;
+                const enemyPortalY = ENEMY_PORTAL_POS.y * TILE_SIZE + TILE_SIZE / 2;
+                const homePortalX = HOME_PORTAL_POS.x * TILE_SIZE + TILE_SIZE / 2;
+                const homePortalY = HOME_PORTAL_POS.y * TILE_SIZE + TILE_SIZE / 2;
+                const basePortalRadius = TILE_SIZE * 0.6;
+                const enemyPulseFactor = 0.5 + (Math.sin(ticker * 0.05) + 1) / 4; 
+                const enemyRadius = basePortalRadius * enemyPulseFactor;
+                ctx.save(); ctx.translate(enemyPortalX, enemyPortalY);
+                ctx.rotate(ticker * 0.01);
+                ctx.fillStyle = `rgba(150, 50, 255, ${0.4 + enemyPulseFactor * 0.3})`; 
+                ctx.beginPath(); ctx.arc(0, 0, enemyRadius, 0, Math.PI * 2); ctx.fill();
+                ctx.rotate(ticker * -0.02); 
+                 ctx.fillStyle = `rgba(200, 100, 255, ${0.5 + enemyPulseFactor * 0.4})`;
+                 ctx.beginPath(); ctx.arc(0, 0, enemyRadius * 0.7, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                const castleWidth = TILE_SIZE * 1.5; const castleHeight = TILE_SIZE * 2;
+                ctx.fillStyle = '#66728a'; 
+                ctx.fillRect(homePortalX - castleWidth / 2, homePortalY - castleHeight / 2, castleWidth, castleHeight);
+                ctx.strokeStyle = '#4a5568'; ctx.lineWidth = 1; 
+                ctx.strokeRect(homePortalX - castleWidth / 2, homePortalY - castleHeight / 2, castleWidth, castleHeight);
+                for (let i = 0; i < 3; i++) { 
+                     ctx.fillRect(homePortalX - castleWidth / 2 + i * (castleWidth/3), homePortalY - castleHeight / 2 - TILE_SIZE * 0.2, castleWidth/3 - 4 , TILE_SIZE * 0.2);
+                 }
+                 const homePulseFactor = 0.5 + (Math.sin(ticker * 0.04 + Math.PI / 2) + 1) / 4; 
+                 const homeRadius = basePortalRadius * 0.8 * homePulseFactor; 
+                 ctx.save(); ctx.translate(homePortalX, homePortalY);
+                 ctx.rotate(ticker * 0.015);
+                 ctx.fillStyle = `rgba(50, 200, 255, ${0.4 + homePulseFactor * 0.3})`;
+                 ctx.beginPath(); ctx.arc(0, 0, homeRadius, 0, Math.PI * 2); ctx.fill();
+                  ctx.rotate(ticker * -0.025);
+                  ctx.fillStyle = `rgba(100, 220, 255, ${0.5 + homePulseFactor * 0.4})`;
+                  ctx.beginPath(); ctx.arc(0, 0, homeRadius * 0.7, 0, Math.PI * 2); ctx.fill();
+                 ctx.restore();
+                if (gateHealth > 0) {
+                    const gateWidth = TILE_SIZE * 0.8; const gateHeight = TILE_SIZE * 1.2;
+                    const gateX = homePortalX - gateWidth / 2 - TILE_SIZE * 0.6; 
+                    const gateY = homePortalY - gateHeight / 2;
+                    ctx.fillStyle = '#8b4513'; ctx.fillRect(gateX, gateY, gateWidth, gateHeight);
+                    ctx.strokeStyle = '#5a2d0c'; ctx.lineWidth = 2; ctx.strokeRect(gateX, gateY, gateWidth, gateHeight);
+                    ctx.beginPath(); ctx.moveTo(gateX + gateWidth / 2, gateY); ctx.lineTo(gateX + gateWidth / 2, gateY + gateHeight); ctx.stroke();
+                    const gateHealthBarWidth = gateWidth; const gateHealthBarHeight = 6;
+                    const gateBarY = gateY - gateHealthBarHeight - 3;
+                    ctx.fillStyle = 'red'; ctx.fillRect(gateX, gateBarY, gateHealthBarWidth, gateHealthBarHeight);
+                    ctx.fillStyle = 'green'; ctx.fillRect(gateX, gateBarY, gateHealthBarWidth * (gateHealth / GATE_MAX_HEALTH), gateHealthBarHeight);
+                    ctx.strokeStyle = 'black'; ctx.lineWidth = 1; ctx.strokeRect(gateX, gateBarY, gateHealthBarWidth, gateHealthBarHeight);
+                }
+            }
+
+            function drawPlasmaCrystals() {
+                energyCrystals.forEach(crystal => { // Renamed array
+                    const x = crystal.x * TILE_SIZE;
+                    const y = crystal.y * TILE_SIZE;
+                    const crystalSize = TILE_SIZE * 0.5; // Smaller than a full tile
+                    const offsetX = (TILE_SIZE - crystalSize) / 2;
+                    const offsetY = (TILE_SIZE - crystalSize) / 2;
+
+                    ctx.fillStyle = 'cyan';
+                    ctx.fillRect(x + offsetX, y + offsetY, crystalSize, crystalSize);
+                    ctx.strokeStyle = 'lightblue';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x + offsetX, y + offsetY, crystalSize, crystalSize);
+
+                    // Draw selection/harvest icon
+                    if (selectedCrystal === crystal) {
+                         // Draw selection border
+                         ctx.strokeStyle = 'yellow';
+                         ctx.lineWidth = 2;
+                         ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+
+                         // Draw Harvest Icon (H) only if crystal is not assigned
+                         if (crystal.assignedWorkerId === null) {
+                             const iconX = x + TILE_SIZE / 2 + HARVEST_ICON_OFFSET_X;
+                             const iconY = y + HARVEST_ICON_OFFSET_Y;
+                             ctx.fillStyle = 'rgba(0, 255, 100, 0.8)'; // Greenish harvest icon
+                             ctx.beginPath();
+                             ctx.arc(iconX, iconY, TOWER_ACTION_ICON_RADIUS, 0, Math.PI * 2);
+                             ctx.fill();
+                             ctx.fillStyle = 'black'; ctx.font = "bold 12px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                             ctx.fillText("H", iconX, iconY + 1);
+                         }
+                    } else if (crystal.assignedWorkerId !== null) { // Indicate assigned even if not selected
+                        ctx.fillStyle = 'rgba(255, 165, 0, 0.5)'; // Orange overlay if assigned
+                        ctx.fillRect(x + offsetX, y + offsetY, crystalSize, crystalSize);
+                    }
+                });
+            }
+
+
+            function drawConstructionSites() {
+                const now = Date.now();
+                // Draw active construction sites
+                constructionSites.forEach(site => {
+                    const x = site.tileX * TILE_SIZE; const y = site.tileY * TILE_SIZE;
+                    ctx.fillStyle = "rgba(100, 100, 100, 0.5)"; ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    if (site.endTime) { // Draw progress only if timer started
+                        const totalTime = site.isUpgrade ? UPGRADE_TIME : BUILD_TIME;
+                        const startTime = site.endTime - totalTime; 
+                        const elapsed = Math.max(0, now - startTime);
+                        const progress = Math.min(1, elapsed / totalTime);
+                        ctx.fillStyle = "rgba(255, 255, 0, 0.7)"; 
+                        ctx.fillRect(x, y + TILE_SIZE - 5, TILE_SIZE * progress, 5); 
+                    } else { // Draw waiting indicator
+                         ctx.fillStyle = "rgba(200, 200, 200, 0.7)"; 
+                         ctx.font = "10px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                         ctx.fillText("?", x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                    }
+                });
+                // Draw queued sites (only if not already an active construction site)
+                 buildQueue.forEach(task => {
+                    const isActiveSite = constructionSites.some(site => site.tileX === task.tileX && site.tileY === task.tileY);
+                    if (!isActiveSite) {
+                        const x = task.tileX * TILE_SIZE; const y = task.tileY * TILE_SIZE;
+                        ctx.fillStyle = "rgba(100, 100, 100, 0.3)"; // Slightly different shade/alpha for queue
+                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = "rgba(0, 100, 255, 0.7)"; // Blue 'Q' for queue
+                        ctx.font = "12px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                        ctx.fillText("Q", x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                    }
+                });
+            }
+
+            function drawGridAndPortals(ticker){ctx.strokeStyle="rgba(255,255,255,0.05)";ctx.lineWidth=1;for(let x=0;x<=CANVAS_WIDTH;x+=TILE_SIZE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CANVAS_HEIGHT);ctx.stroke();}for(let y=0;y<=CANVAS_HEIGHT;y+=TILE_SIZE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CANVAS_WIDTH,y);ctx.stroke();}drawPortalsAndGate(ticker);} // Pass ticker
+            
+            function canPlaceItem(tileX,tileY,itemType){if(tileX<0||tileX>=GRID_WIDTH||tileY<0||tileY>=GRID_HEIGHT)return false;if((tileX===ENEMY_PORTAL_POS.x&&tileY===ENEMY_PORTAL_POS.y)||(tileX===HOME_PORTAL_POS.x&&tileY===HOME_PORTAL_POS.y)){showMessage("Cannot place on portals!","error",1500);return false;}for(const t of towers)if(t.tileX===tileX&&t.tileY===tileY)return false;for(const o of obstacles)if(o.tileX===tileX&&o.tileY===tileY)return false;for(const site of constructionSites)if(site.tileX===tileX&&site.tileY===tileY)return false; for(const task of buildQueue)if(task.tileX===tileX&&task.tileY===tileY)return false; for(const crystal of energyCrystals)if(crystal.x===tileX&&crystal.y===tileY)return false; /* Cannot build on crystals */ const pathExists=getAStarPath(ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,{x:tileX,y:tileY}, false);if(pathExists.length===0){showMessage("Cannot block all paths!","error",1500);return false;}return true;}
+            
+            function handleItemPlacement(mouseX,mouseY){
+                if(!placingItemInfo) return; 
+                // Check affordability first
+                if(energy < placingItemInfo.type.cost){ showMessage("Not enough Energy!","error"); return; } // Use energy
+
+                const tileX=Math.floor(mouseX/TILE_SIZE);const tileY=Math.floor(mouseY/TILE_SIZE);
+                if(canPlaceItem(tileX,tileY,placingItemInfo.type)){
+                    
+                    energy-=placingItemInfo.type.cost; // Use energy
+                    
+                    // Add to build queue
+                    buildQueue.push({ 
+                        type: 'build', 
+                        itemData: placingItemInfo.type, 
+                        tileX: tileX, 
+                        tileY: tileY 
+                    });
+
+                    updateUI();
+                    updateBuildButtons(); 
+                    showMessage("Build Queued!", "info"); 
+
+                    // Attempt to assign a worker immediately if one is available
+                    const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
+                    if (availableWorker) {
+                        checkBuildQueue(availableWorker); // This will pull the task we just added
+                    }
+
+                    placingItemInfo=null;canvas.style.cursor='default';selectedTower=null;updateBottomStatsPanel();
+                }
+            }
+             function handleUpgradeRequest(tower) {
+                 // Check affordability and level first
+                 if (tower.level >= tower.towerTypeData.levels.length - 1) { showMessage("Max level!", "info"); return; }
+                 if (energy < tower.upgradeCost) { showMessage("Not enough Energy!", "error"); return; } // Use energy
+                 if (constructionSites.some(site => site.isUpgrade && site.itemData === tower) || buildQueue.some(task => task.type === 'upgrade' && task.itemData === tower)) { 
+                     showMessage("Upgrade already in progress/queued!", "info"); 
+                     return; 
+                 }
+
+                 energy -= tower.upgradeCost; // Use energy
+                 // Don't increment totalInvested or level here, do it when upgrade completes
+                 
+                 // Add to build queue
+                 buildQueue.push({ 
+                     type: 'upgrade', 
+                     itemData: tower, // Reference the tower
+                     tileX: tower.tileX, 
+                     tileY: tower.tileY 
+                 });
+
+                 updateUI();
+                 updateBuildButtons();
+                 showMessage("Upgrade Queued!", "info");
+                 
+                 // Attempt to assign a worker immediately if one is available
+                 const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
+                 if (availableWorker) {
+                     checkBuildQueue(availableWorker); // This will pull the task we just added
+                 }
+
+                 selectedTower = null; // Deselect while queued/upgrading
+                 updateBottomStatsPanel();
+             }
+
+            function handleCastleUpgradeRequest() {
+                if (castleLevel >= CASTLE_MAX_LEVEL) { showMessage("Castle at Max Level!", "info"); return; }
+                if (energy < castleUpgradeCost) { showMessage("Not enough Energy for Castle Upgrade!", "error"); return; } // Use energy
+                
+                energy -= castleUpgradeCost; // Use energy
+                castleLevel++;
+                castleAttackDamage += 2 + castleLevel; 
+                castleAttackRate = Math.max(30, castleAttackRate - 10); 
+                castleUpgradeCost = Math.floor(castleUpgradeCost * 1.8); 
+
+                // Add worker logic
+                if ((castleLevel === 3 || castleLevel === 5) && workers.length < MAX_WORKERS) {
+                    workers.push(new Worker(workers.length)); // Add new worker with next ID
+                    showMessage(`Castle upgraded! Worker added! (Total: ${workers.length})`, "success");
+                } else {
+                    showMessage(`Castle upgraded to Level ${castleLevel}!`, "success");
+                }
+
+                updateUI();
+                updateBuildButtons(); // Update button state/cost
+            }
+            
+            function handleWorkerUpgradeRequest() {
+                 if (workerLevel >= WORKER_MAX_LEVEL) { showMessage("Workers at Max Level!", "info"); return; }
+                 if (energy < workerUpgradeCost) { showMessage("Not enough Energy for Worker Upgrade!", "error"); return; }
+
+                 energy -= workerUpgradeCost;
+                 workerLevel++;
+                 // Apply upgrades (Example: increase speed by 10%, decrease build time by 10%)
+                 WORKER_SPEED *= 1.1;
+                 BUILD_TIME *= 0.9;
+                 UPGRADE_TIME *= 0.9;
+                 // Update all existing workers' speeds
+                 workers.forEach(w => w.speed = WORKER_SPEED); 
+
+                 workerUpgradeCost = Math.floor(workerUpgradeCost * 2.5); // Increase cost significantly
+
+                 updateUI();
+                 updateBuildButtons();
+                 showMessage(`Workers upgraded to Level ${workerLevel}!`, "success");
+            }
+
+
+            function handleCastleAttack() {
+                if (castleFireCooldown > 0) {
+                    castleFireCooldown--;
+                    return;
+                }
+
+                let closestEnemy = null;
+                let minDistSq = castleAttackRange * castleAttackRange; 
+                const castlePixelX = HOME_PORTAL_POS.x * TILE_SIZE + TILE_SIZE / 2;
+                const castlePixelY = HOME_PORTAL_POS.y * TILE_SIZE + TILE_SIZE / 2;
+
+                enemies.forEach(enemy => {
+                    // Castle should only target ground units unless upgraded? For now, target all.
+                    // Add checks here if needed: if (enemy.isFlying) return; 
+                    const dx = enemy.pixelX - castlePixelX;
+                    const dy = enemy.pixelY - castlePixelY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < minDistSq) {
+                        minDistSq = distSq;
+                        closestEnemy = enemy;
+                    }
+                });
+
+                if (closestEnemy) {
+                     projectiles.push(new Projectile(
+                         castlePixelX, castlePixelY, 
+                         closestEnemy, 
+                         castleAttackDamage, 
+                         6, 'lightblue', 4, 0, 0, true 
+                     ));
+                    castleFireCooldown = castleAttackRate;
+                }
+            }
+
+
+            function showMessage(text,type="info",duration=2000){messageBox.textContent=text;messageBox.className='message-box p-4 rounded text-center fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';if(type==="error")messageBox.classList.add('bg-red-700','text-white');else if(type==="success")messageBox.classList.add('bg-green-600','text-white');else messageBox.classList.add('bg-blue-600','text-white');messageBox.classList.remove('hidden');setTimeout(()=>{messageBox.classList.add('hidden');},duration);}
+            function triggerGameOver(reason){if(gameOver)return;gameOver=true;showMessage(`Game Over! ${reason}`,"error",5000);updateCallWaveButton();}
+            function triggerGameWin(){if(gameWon)return;gameWon=true;showMessage(`VICTORY! All ${STAGES.length} stages cleared! Score: ${score}`,"success",10000);updateCallWaveButton();} // Adjusted win message
+            function resetGame(){
+                energy=300;lives=25;globalWaveCounter=0;currentStageIndex=0;currentWaveInStage=0;score=0; // Reset stage/wave counters
+                enemies=[];towers=[];obstacles=[];projectiles=[];particles=[];soldiers=[];refugees=[];
+                enemySpawnQueue=[];enemiesOnBoard=0;placingItemInfo=null;selectedTower=null;selectedCrystal=null;
+                gameOver=false;gameWon=false;gateHealth=GATE_MAX_HEALTH;
+                constructionSites=[];buildQueue=[];refugeeSpawnTimer=REFUGEE_SPAWN_INTERVAL;
+                // Reset Castle Stats
+                castleLevel = 1; castleAttackDamage = 3; castleAttackRange = TILE_SIZE * 2.5; 
+                castleAttackRate = 90; castleFireCooldown = 0; castleUpgradeCost = 150;
+                // Reset Worker Stats
+                workerLevel = 1; workerUpgradeCost = 100; WORKER_SPEED = 3; BUILD_TIME = 2000; UPGRADE_TIME = 1500;
+                // Reset workers
+                workers = [];
+                for(let i = 0; i < INITIAL_WORKERS; i++) {
+                    workers.push(new Worker(i));
+                }
+                spawnPlasmaCrystals(INITIAL_CRYSTALS); // Spawn initial crystals
+                stopWaveCountdown(); // Ensure countdown is stopped on reset
+                updateUI();updateBottomStatsPanel();updateCallWaveButton();updateBuildButtons();
+                messageBox.classList.add('hidden');canvas.style.cursor='default';
+            }
+
+            // --- Event Listeners ---
+            startGameButton.addEventListener('click', () => {
+                titleScreen.style.opacity = '0';
+                setTimeout(() => {
+                    titleScreen.style.display = 'none';
+                    mainGameContainer.style.display = 'flex'; 
+                    initializeGame(); 
+                }, 500); 
+            });
+
+            callWaveButton.addEventListener('click',()=>{if(gameOver||gameWon)resetGame();else handleCallWave();});
+            function prepareToPlaceItem(itemKey,itemDefinition){
+                 // Check affordability first
+                 if(energy < itemDefinition.cost){ showMessage(`Not enough Energy!`,"error"); return; } // Use energy
+                 // Allow entering placement mode regardless of worker status
+                 placingItemInfo={itemKey:itemKey,type:itemDefinition,mouseX:0,mouseY:0};
+                 selectedTower=null; selectedCrystal=null; updateBottomStatsPanel();canvas.style.cursor='copy';
+                 showMessage(`Placing ${itemDefinition.name}. Click map.`,"info");
+            }
+            buyBasicTowerButton.addEventListener('click',()=>prepareToPlaceItem('BASIC_TOWER',TOWER_TYPES.BASIC));
+            buySniperTowerButton.addEventListener('click',()=>prepareToPlaceItem('SNIPER_TOWER',TOWER_TYPES.SNIPER));
+            buySplashTowerButton.addEventListener('click',()=>prepareToPlaceItem('SPLASH_TOWER',TOWER_TYPES.SPLASH));
+            buySlowTowerButton.addEventListener('click', () => prepareToPlaceItem('SLOW_TOWER', TOWER_TYPES.SLOW)); // Added
+            buyBuffTowerButton.addEventListener('click', () => prepareToPlaceItem('BUFF_TOWER', TOWER_TYPES.BUFF)); // Added
+            buyObstacleButton.addEventListener('click',()=>prepareToPlaceItem('OBSTACLE',ITEMS.OBSTACLE));
+            buyReinforcedObstacleButton.addEventListener('click', () => prepareToPlaceItem('REINFORCED_OBSTACLE', ITEMS.REINFORCED_OBSTACLE)); // Added
+            spawnSoldierButton.addEventListener('click', () => { 
+                const soldierType = SOLDIER_TYPES.SOLDIER; 
+                if (energy >= soldierType.cost) { // Use energy
+                    energy -= soldierType.cost;
+                    soldiers.push(new Soldier(soldierType)); 
+                    updateUI();
+                    showMessage("Soldier deployed!", "success", 1000);
+                } else {
+                    showMessage("Not enough Energy for Soldier!", "error");
+                }
+            });
+            upgradeCastleButton.addEventListener('click', handleCastleUpgradeRequest); 
+            upgradeWorkerButton.addEventListener('click', handleWorkerUpgradeRequest); // Added listener
+
+            // Tab Switching Logic
+            buildTabsContainer.addEventListener('click', (event) => {
+                if (event.target.classList.contains('build-tab')) {
+                    const targetTab = event.target.dataset.tab;
+
+                    // Update active tab button style
+                    buildTabsContainer.querySelectorAll('.build-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    event.target.classList.add('active');
+
+                    // Show/hide tab content
+                    for (let content of buildTabContents) {
+                        if (content.id === `tab-${targetTab}`) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    }
+                }
+            });
+
+
+            canvas.addEventListener('click',(event)=>{
+                const rect=canvas.getBoundingClientRect();
+                const mouseX=event.clientX-rect.left;
+                const mouseY=event.clientY-rect.top;
+                
+                if(placingItemInfo) {
+                    handleItemPlacement(mouseX,mouseY);
+                    selectedCrystal = null; // Deselect crystal when placing item
+                } else {
+                    let clickedOnAction = false;
+                    // Tower Actions
+                    if (selectedTower) {
+                        const upgradeIconX=selectedTower.pixelX+UPGRADE_ICON_OFFSET_X; const upgradeIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
+                        if(getDistance({x:mouseX,y:mouseY},{x:upgradeIconX,y:upgradeIconY})<=TOWER_ACTION_ICON_RADIUS){handleUpgradeRequest(selectedTower);clickedOnAction=true;}
+                        const sellIconX=selectedTower.pixelX+SELL_ICON_OFFSET_X; const sellIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
+                        if(!clickedOnAction&&getDistance({x:mouseX,y:mouseY},{x:sellIconX,y:sellIconY})<=TOWER_ACTION_ICON_RADIUS){const sellValue=selectedTower.getSellValue();energy+=sellValue;selectedTower.destroy();updateUI();showMessage(`Tower sold for ⚡${sellValue}`,"success");clickedOnAction=true;} // Energy symbol
+                    }
+                    // Crystal Action
+                    if (selectedCrystal && !clickedOnAction) {
+                         const crystalPixelX = selectedCrystal.x * TILE_SIZE + TILE_SIZE / 2;
+                         const crystalPixelY = selectedCrystal.y * TILE_SIZE + TILE_SIZE / 2;
+                         const harvestIconX = crystalPixelX + HARVEST_ICON_OFFSET_X;
+                         const harvestIconY = crystalPixelY + HARVEST_ICON_OFFSET_Y;
+                         if (getDistance({x:mouseX, y:mouseY}, {x: harvestIconX, y: harvestIconY}) <= TOWER_ACTION_ICON_RADIUS) {
+                             handleHarvestRequest(selectedCrystal);
+                             clickedOnAction = true;
+                         }
+                    }
+
+                    if(!clickedOnAction){
+                        let clickedOnTowerObject=false;
+                        for(const tower of towers){if(mouseX>=tower.pixelX-tower.size/2&&mouseX<=tower.pixelX+tower.size/2&&mouseY>=tower.pixelY-tower.size/2&&mouseY<=tower.pixelY+tower.size/2){selectedTower=tower;selectedCrystal=null;clickedOnTowerObject=true;break;}}
+                        
+                        let clickedOnCrystalObject = false;
+                        if (!clickedOnTowerObject) {
+                             for (const crystal of energyCrystals) { // Use energyCrystals
+                                const crystalX = crystal.x * TILE_SIZE;
+                                const crystalY = crystal.y * TILE_SIZE;
+                                // Check if clicking within the crystal's tile area
+                                if (mouseX >= crystalX && mouseX <= crystalX + TILE_SIZE && mouseY >= crystalY && mouseY <= crystalY + TILE_SIZE) {
+                                    // Only select if not already assigned to a worker
+                                    if (crystal.assignedWorkerId === null) {
+                                        selectedCrystal = crystal;
+                                        selectedTower = null;
+                                        clickedOnCrystalObject = true;
+                                    } else {
+                                        showMessage("Crystal is being harvested.", "info");
+                                    }
+                                    break; 
+                                }
+                            }
+                        }
+
+                        if(!clickedOnTowerObject && !clickedOnCrystalObject) { // Clicked empty space
+                            selectedTower=null;
+                            selectedCrystal = null;
+                        }
+                    }
+                    updateBottomStatsPanel();
+                }
+            });
+            canvas.addEventListener('mousemove',(event)=>{if(placingItemInfo){const rect=canvas.getBoundingClientRect();placingItemInfo.mouseX=event.clientX-rect.left;placingItemInfo.mouseY=event.clientY-rect.top;}});
+            window.addEventListener('keydown',(event)=>{if(event.key==="Escape"){if(placingItemInfo){placingItemInfo=null;canvas.style.cursor='default';showMessage("Placement cancelled.","info");}else if(selectedTower){selectedTower=null;updateBottomStatsPanel();} else if (selectedCrystal) { selectedCrystal = null; } }});
+            function getDistance(obj1,obj2){const dx=obj1.x-obj2.x;const dy=obj1.y-obj2.y;return Math.sqrt(dx*dx+dy*dy);}
+
+             function handleHarvestRequest(crystal) {
+                 if (!crystal || crystal.assignedWorkerId !== null) {
+                     console.log("Crystal invalid or already assigned");
+                     return; // Already being harvested or invalid
+                 }
+
+                 const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
+                 if (!availableWorker) {
+                     showMessage("No worker available to harvest!", "error");
+                     return;
+                 }
+                 
+                 console.log(`Assigning worker ${availableWorker.id} to harvest crystal at ${crystal.x},${crystal.y}`);
+                 availableWorker.assignHarvestTask(crystal);
+                 showMessage("Worker dispatched to harvest!", "info");
+                 selectedCrystal = null; // Deselect after assigning task
+             }
+
+
+            // --- Game Loop ---
+            let lastTimestamp = 0;
+            function gameLoop(timestamp){
+                const deltaTime = (timestamp - lastTimestamp) || (1000/60); 
+                lastTimestamp = timestamp;
+
+                if (!gameStarted) { requestAnimationFrame(gameLoop); return; }
+                
+                handleConstructionSites(Date.now()); 
+                handleRefugeeSpawning(deltaTime); 
+                workers.forEach(worker => worker.update()); 
+                handleCastleAttack(); // Update castle attack logic
+
+                if(gameOver||gameWon){ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);ctx.fillStyle=gameWon?"gold":"white";ctx.font="28px 'Press Start 2P'";ctx.textAlign="center";ctx.fillText(gameWon?"YOU WON!":"GAME OVER",CANVAS_WIDTH/2,CANVAS_HEIGHT/2-30);ctx.font="14px 'Press Start 2P'";ctx.fillText(gameWon?`Final Score: ${score}`:(gameOver?"Click Button to Restart":""),CANVAS_WIDTH/2,CANVAS_HEIGHT/2+15);requestAnimationFrame(gameLoop);return;}
+                
+                ctx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+                drawGridAndPortals(gameLoopTicker); 
+                drawPlasmaCrystals(); // Draw the crystals
+                obstacles.forEach(o=>o.draw());
+                towers.forEach(tower=>{tower.update();tower.draw();});
+                projectiles.forEach(p=>{p.move();p.draw();});
+                projectiles=projectiles.filter(p=>{if(!p.target||p.target.health<=0)return false;return projectiles.includes(p);});
+                enemies.forEach(enemy=>{enemy.move();enemy.draw();});
+                soldiers.forEach(soldier=>{soldier.move(); soldier.draw();}); 
+                refugees.forEach(refugee=>{refugee.move(); refugee.draw();}); 
+                workers.forEach(worker => worker.draw()); 
+                particles.forEach((p,index)=>{p.update();p.draw();if(p.life<=0)particles.splice(index,1);});
+                drawConstructionSites(); 
+                handleEnemySpawning();
+                if(placingItemInfo){const tileX=Math.floor(placingItemInfo.mouseX/TILE_SIZE);const tileY=Math.floor(placingItemInfo.mouseY/TILE_SIZE);const previewPixelX=tileX*TILE_SIZE+TILE_SIZE/2;const previewPixelY=tileY*TILE_SIZE+TILE_SIZE/2;const itemSize=placingItemInfo.type.size;ctx.globalAlpha=0.5;ctx.fillStyle=placingItemInfo.type.color;if(placingItemInfo.type.isTower)ctx.fillRect(previewPixelX-itemSize/2,previewPixelY-itemSize/2,itemSize,itemSize);else ctx.fillRect(tileX*TILE_SIZE,tileY*TILE_SIZE,itemSize,itemSize);if(placingItemInfo.type.isTower&&placingItemInfo.type.levels){ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(previewPixelX,previewPixelY,placingItemInfo.type.levels[0].range,0,Math.PI*2);ctx.stroke();}const tempPathCheck=getAStarPath(ENEMY_PORTAL_POS.x,ENEMY_PORTAL_POS.y,HOME_PORTAL_POS.x,HOME_PORTAL_POS.y,{x:tileX,y:tileY}, false);const placementPossible=canPlaceItem(tileX,tileY,placingItemInfo.type);const pathStillExists=tempPathCheck.length>0;const finalCanPlace=placementPossible&&pathStillExists;ctx.strokeStyle=finalCanPlace?'rgba(0,255,0,0.7)':'rgba(255,0,0,0.7)';ctx.lineWidth=2;if(placingItemInfo.type.isTower)ctx.strokeRect(previewPixelX-itemSize/2,previewPixelY-itemSize/2,itemSize,itemSize);else ctx.strokeRect(tileX*TILE_SIZE,tileY*TILE_SIZE,itemSize,itemSize);ctx.globalAlpha=1.0;}
+                gameLoopTicker++; requestAnimationFrame(gameLoop);
+            }
+            // Game loop is started via button click now
+        };
+    </script>
+</body>
+</html>
