@@ -20,8 +20,15 @@
             color: #a0aec0; 
             display: flex; flex-direction: column; align-items: center;
             justify-content: flex-start; 
-            min-height: 100vh; margin: 0; overflow-x: hidden; 
+            min-height: 100vh; margin: 0; 
+            overflow-x: hidden; 
+             /* Prevent pull-to-refresh and other touch actions on the body */
+            touch-action: manipulation; /* More specific than none */
+            overscroll-behavior-y: contain; 
         }
+         /* Prevent selection */
+        canvas { -webkit-user-select: none; -ms-user-select: none; user-select: none; }
+
 
         /* Title Screen Styles */
         #titleScreen {
@@ -83,6 +90,7 @@
         #gameCanvas {
             background-color: #2d3748; border: 2px solid #4a5568; border-radius: 0.5rem; 
             cursor: default; display: block; margin-left: auto; margin-right: auto; max-width: 100%; 
+             touch-action: none; /* Prevent default touch actions like scrolling on the canvas */
         }
         #bottomStatsPanel {
             background-color: #1a202c; color: #e2e8f0; border: 1px solid #2d3748; 
@@ -446,7 +454,7 @@
                 }
             }
 
-            // --- Worker Class --- (Removed automatic harvesting logic)
+            // --- Worker Class --- (Updated harvest logic)
             class Worker {
                 constructor(id) {
                     this.id = id;
@@ -575,7 +583,7 @@
                             this.path = getAStarPath(startTileX, startTileY, Math.floor(WORKER_HOME_POS.x/TILE_SIZE), Math.floor(WORKER_HOME_POS.y/TILE_SIZE), null, false);
                             this.pathIndex = 0;
 
-                            this.targetCrystal = null; 
+                            this.targetCrystal = null; // Clear target crystal reference
                             updateUI(); 
                             updateBuildButtons(); 
                             checkBuildQueue(this); 
