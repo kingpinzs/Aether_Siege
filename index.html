@@ -22,13 +22,10 @@
             justify-content: flex-start; 
             min-height: 100vh; margin: 0; 
             overflow-x: hidden; 
-             /* Prevent pull-to-refresh and other touch actions on the body */
-            touch-action: manipulation; /* More specific than none */
+            touch-action: manipulation; 
             overscroll-behavior-y: contain; 
         }
-         /* Prevent selection */
         canvas { -webkit-user-select: none; -ms-user-select: none; user-select: none; }
-
 
         /* Title Screen Styles */
         #titleScreen {
@@ -53,44 +50,71 @@
         #startGameButton:active { transform: scale(0.95); }
         @keyframes pulse { from { opacity: 0.7; transform: scale(1); } to { opacity: 1; transform: scale(1.03); } }
 
-        /* Main Game Container - Hidden initially */
+        /* Main Game Container */
         #mainGameContainer {
             display: none; flex-direction: column; width: 100%;
             max-width: 700px; padding: 0.5rem; box-sizing: border-box;
-            margin-top: 0.5rem; /* Reduced margin */
+            margin-top: 0.5rem; 
         }
         
         /* Top Info Bar */
         #topInfoBar {
             display: flex; justify-content: space-between; align-items: flex-start; 
-            background-color: #1a202c; padding: 0.4rem 0.75rem; /* Reduced padding */
+            background-color: #1a202c; padding: 0.4rem 0.75rem; 
              border-radius: 0.5rem;
-            margin-bottom: 0.5rem; font-size: 0.65rem; /* Smaller base font */
+            margin-bottom: 0.25rem; /* Reduced margin */
+             font-size: 0.65rem; 
              border: 1px solid #2d3748;
         }
         #infoLeft, #infoCenter, #infoRight { display: flex; flex-direction: column; }
         #infoLeft { align-items: flex-start; } 
-        #infoCenter { align-items: center; text-align: center; } /* Center align text */
+        #infoCenter { align-items: center; text-align: center; } 
         #infoRight { align-items: flex-end; }
-        #topInfoBar p { margin: 0.05rem 0; } /* Reduced margin */
+        #topInfoBar p { margin: 0.05rem 0; } 
         #topInfoBar .label { color: #a0aec0; } 
         #topInfoBar .value { color: #f6e05e; font-weight: bold; } 
-        #topInfoBar .energy-value { color: var(--energy-color); font-weight: bold; } /* Energy color */
+        #topInfoBar .energy-value { color: var(--energy-color); font-weight: bold; } 
         #scoreDisplayContainer { margin-top: 0.1rem; }
         #workerDisplayContainer { margin-top: 0.1rem; } 
         #gateHealthDisplayContainer { margin-top: 0.1rem; } 
         #castleLevelDisplayContainer { margin-top: 0.1rem; } 
         #waveInfoContainer { margin-top: 0.1rem; } 
          #countdownDisplay {
-            font-size: 0.6rem; color: #63b3ed; /* Tailwind blue-400 */
-            margin-top: 0.2rem; text-align: center; height: 1em; /* Reserve space */
+            font-size: 0.6rem; color: #63b3ed; 
+            margin-top: 0.2rem; text-align: center; height: 1em; 
         }
+        /* Build Queue Display */
+         #buildQueueDisplay {
+            background-color: rgba(26, 32, 44, 0.7); /* bg-gray-800 with alpha */
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            margin-bottom: 0.5rem;
+            min-height: 30px; /* Ensure it has some height even when empty */
+             display: flex;
+             align-items: center;
+             gap: 0.25rem;
+             flex-wrap: wrap; /* Allow wrapping if many items */
+        }
+         .queue-item {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #4a5568;
+            display: inline-block;
+             font-size: 10px;
+             line-height: 18px; /* Center text vertically */
+             text-align: center;
+             color: white;
+             font-weight: bold;
+        }
+        .queue-item.build { background-color: #718096; } /* Gray for build */
+        .queue-item.upgrade { background-color: #68d391; } /* Green for upgrade */
+        .queue-item.harvest { background-color: #00FFFF; color: black; } /* Cyan for harvest */
 
 
         #gameCanvas {
             background-color: #2d3748; border: 2px solid #4a5568; border-radius: 0.5rem; 
             cursor: default; display: block; margin-left: auto; margin-right: auto; max-width: 100%; 
-             touch-action: none; /* Prevent default touch actions like scrolling on the canvas */
+             touch-action: none; 
         }
         #bottomStatsPanel {
             background-color: #1a202c; color: #e2e8f0; border: 1px solid #2d3748; 
@@ -101,7 +125,7 @@
         #bottomStatsPanel p { margin: 0.15rem 0; } 
         #bottomStatsPanel .stat-label { color: #a0aec0; } 
         #bottomStatsPanel .stat-value { color: #f6e05e; } 
-        #bottomStatsPanel .energy-value { color: var(--energy-color); } /* Energy color for costs */
+        #bottomStatsPanel .energy-value { color: var(--energy-color); } 
 
         /* Bottom Control Bar */
         #bottomControlBar {
@@ -212,6 +236,8 @@
             </div>
         </div>
         
+        <div id="buildQueueDisplay"></div> {/* Added Build Queue Display Area */}
+        
         <canvas id="gameCanvas"></canvas>
         
         <div id="bottomStatsPanel" class="hidden">
@@ -231,27 +257,27 @@
             <div id="buildControlsContent">
                 <div id="tab-towers" class="build-tab-content active">
                      <div class="build-buttons">
-                        <button id="buyBasicTower" class="ui-button control-button">
+                        <button id="buyBasicTower" class="ui-button control-button" title="Basic Tower - Cost: 50⚡">
                             Basic
                             <div class="control-icon bg-blue-500 border-blue-700"></div>
                             <span class="control-cost">⚡50</span> 
                         </button>
-                        <button id="buySniperTower" class="ui-button control-button">
+                        <button id="buySniperTower" class="ui-button control-button" title="Sniper Tower - Cost: 100⚡">
                             Sniper
                             <div class="control-icon bg-green-500 border-green-700"></div>
                             <span class="control-cost">⚡100</span> 
                         </button>
-                        <button id="buySplashTower" class="ui-button control-button">
+                        <button id="buySplashTower" class="ui-button control-button" title="Splash Tower - Cost: 125⚡">
                             Splash
                             <div class="control-icon bg-purple-500 border-purple-700"></div>
                             <span class="control-cost">⚡125</span> 
                         </button>
-                        <button id="buySlowTower" class="ui-button control-button">
+                        <button id="buySlowTower" class="ui-button control-button" title="Slow Tower - Cost: 80⚡">
                             Slow
                             <div class="control-icon bg-cyan-500 border-cyan-700"></div>
                             <span class="control-cost">⚡80</span> 
                         </button>
-                         <button id="buyBuffTower" class="ui-button control-button">
+                         <button id="buyBuffTower" class="ui-button control-button" title="Buff Tower - Cost: 150⚡">
                             Buff
                             <div class="control-icon bg-pink-500 border-pink-700"></div>
                             <span class="control-cost">⚡150</span> 
@@ -261,12 +287,12 @@
 
                 <div id="tab-walls" class="build-tab-content">
                       <div class="build-buttons">
-                        <button id="buyObstacleButton" class="ui-button control-button">
+                        <button id="buyObstacleButton" class="ui-button control-button" title="Block - Cost: 15⚡">
                             Block
                             <div class="control-icon bg-gray-500 border-gray-700"></div>
                             <span class="control-cost">⚡15</span> 
                         </button>
-                        <button id="buyReinforcedObstacleButton" class="ui-button control-button">
+                        <button id="buyReinforcedObstacleButton" class="ui-button control-button" title="Heavy Block - Cost: 40⚡">
                             Heavy
                             <div class="control-icon bg-gray-700 border-gray-900"></div>
                             <span class="control-cost">⚡40</span> 
@@ -276,17 +302,17 @@
 
                  <div id="tab-support" class="build-tab-content">
                       <div class="build-buttons">
-                        <button id="spawnSoldierButton" class="ui-button control-button">
+                        <button id="spawnSoldierButton" class="ui-button control-button" title="Soldier - Cost: 75⚡">
                             Soldier
                             <div class="control-icon bg-yellow-500 border-yellow-700"></div>
                             <span class="control-cost">⚡75</span> 
                         </button>
-                         <button id="upgradeCastleButton" class="ui-button control-button">
+                         <button id="upgradeCastleButton" class="ui-button control-button" title="Upgrade Castle">
                             Castle
                             <div class="control-icon bg-teal-500 border-teal-700"></div>
                             <span id="upgradeCastleCostDisplay" class="control-cost">⚡150</span> 
                         </button>
-                         <button id="upgradeWorkerButton" class="ui-button control-button">
+                         <button id="upgradeWorkerButton" class="ui-button control-button" title="Upgrade Workers">
                             Worker
                             <div class="control-icon bg-orange-500 border-orange-700"></div>
                             <span id="upgradeWorkerCostDisplay" class="control-cost">⚡100</span> 
@@ -302,7 +328,7 @@
 
     <script>
         window.onload = function() {
-            // --- DOM Elements --- (Remain the same)
+            // --- DOM Elements ---
             const titleScreen = document.getElementById('titleScreen');
             const startGameButton = document.getElementById('startGameButton');
             const mainGameContainer = document.getElementById('mainGameContainer');
@@ -344,6 +370,7 @@
             const statsSellPrice = document.getElementById('statsSellPrice');
             const buildTabsContainer = document.getElementById('buildTabsContainer'); 
             const buildTabContents = document.getElementById('buildControlsContent').children; 
+            const buildQueueDisplay = document.getElementById('buildQueueDisplay'); // Build Queue Div
 
             // --- Game Configuration --- (Remain the same)
             const CANVAS_WIDTH = 640; const CANVAS_HEIGHT = 480; const TILE_SIZE = 32;
@@ -601,6 +628,22 @@
                         ctx.strokeStyle = 'black';
                         ctx.lineWidth = 1;
                         ctx.strokeRect(this.pixelX - this.size / 2, this.pixelY - this.size / 2, this.size, this.size);
+
+                        // Draw Status Indicator
+                        let statusText = '';
+                        switch(this.state) {
+                            case 'movingToSite': statusText = 'M>'; break;
+                            case 'movingToResource': statusText = 'G>'; break;
+                            case 'returning': statusText = 'R'; break;
+                            case 'idle': statusText = 'I'; break;
+                        }
+                         if (statusText) {
+                            ctx.fillStyle = "white";
+                            ctx.font = "bold 10px 'Press Start 2P'";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "bottom";
+                            ctx.fillText(statusText, this.pixelX, this.pixelY - this.size / 2 - 2);
+                        }
                     }
                 }
             }
@@ -1115,6 +1158,7 @@
                 
                 // Call updateBuildButtons whenever UI is updated to reflect energy changes
                 updateBuildButtons(); 
+                 drawBuildQueue(); // Update build queue display
             } 
             function updateBottomStatsPanel(){if(selectedTower){bottomStatsPanel.classList.remove('hidden');statsTowerType.textContent=selectedTower.towerTypeData.name;statsTowerLevel.textContent=selectedTower.level+1;statsTowerHealth.textContent=`${selectedTower.health.toFixed(0)}/${selectedTower.maxHealth.toFixed(0)}`;statsTowerDamage.textContent=selectedTower.damage.toFixed(1);statsTowerRange.textContent=selectedTower.range;statsTowerFireRate.textContent=(60/selectedTower.fireRate).toFixed(2)+"/s";statsUpgradeCost.textContent=(selectedTower.level<selectedTower.towerTypeData.levels.length-1)?`⚡${selectedTower.upgradeCost}`:"MAX";statsSellPrice.textContent=`⚡${selectedTower.getSellValue()}`;}else{bottomStatsPanel.classList.add('hidden');}} // Use Energy symbol
             
@@ -1228,7 +1272,7 @@
                          ctx.lineWidth = 2;
                          ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
 
-                         // Draw Harvest Icon (H) only if crystal is not assigned
+                         // Draw Harvest Icon (H) only if crystal is not assigned AND not queued
                          if (crystal.assignedWorkerId === null && !buildQueue.some(task => task.type === 'harvest' && task.crystal === crystal)) {
                              const iconX = x + TILE_SIZE / 2 + HARVEST_ICON_OFFSET_X;
                              const iconY = y + HARVEST_ICON_OFFSET_Y;
@@ -1287,6 +1331,35 @@
                     }
                 });
             }
+
+             function drawBuildQueue() {
+                buildQueueDisplay.innerHTML = ''; // Clear previous queue
+                buildQueue.forEach(task => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.classList.add('queue-item');
+                    let symbol = '?';
+                    let bgColor = '#718096'; // Default grey
+
+                    if (task.type === 'build' || task.type === 'upgrade') {
+                        bgColor = task.itemData?.color || '#718096'; // Use item color if available
+                        symbol = task.type === 'upgrade' ? 'U' : 'B';
+                         if(task.itemData?.name) { // Add tooltip for item name
+                            itemDiv.title = `${task.type === 'upgrade' ? 'Upgrade' : 'Build'}: ${task.itemData.name}`;
+                        }
+                    } else if (task.type === 'harvest') {
+                        bgColor = 'cyan';
+                        symbol = 'H';
+                        itemDiv.title = `Harvest Crystal at (${task.tileX}, ${task.tileY})`;
+                    }
+                    
+                    itemDiv.style.backgroundColor = bgColor;
+                    itemDiv.textContent = symbol;
+                    if (bgColor === 'cyan') itemDiv.style.color = 'black'; // Make H visible on cyan
+
+                    buildQueueDisplay.appendChild(itemDiv);
+                });
+            }
+
 
             function drawGridAndPortals(ticker){ctx.strokeStyle="rgba(255,255,255,0.05)";ctx.lineWidth=1;for(let x=0;x<=CANVAS_WIDTH;x+=TILE_SIZE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CANVAS_HEIGHT);ctx.stroke();}for(let y=0;y<=CANVAS_HEIGHT;y+=TILE_SIZE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CANVAS_WIDTH,y);ctx.stroke();}drawPortalsAndGate(ticker);} // Pass ticker
             
