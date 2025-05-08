@@ -564,11 +564,13 @@
                     } else if (this.state === 'harvesting') {
                         if (Date.now() >= this.harvestEndTime) {
                             console.log(`Worker ${this.id} finished harvesting.`);
-                            const crystalIndex = energyCrystals.findIndex(c => c.x === this.targetCrystal?.x && c.y === this.targetCrystal?.y);
+                            const crystalRef = this.targetCrystal; // Store ref before potentially clearing
+                            const crystalIndex = energyCrystals.findIndex(c => c === crystalRef); // Find by reference
+                            
                             if (crystalIndex > -1) {
-                                energyCrystals.splice(crystalIndex, 1); 
-                                energy += ENERGY_PER_CRYSTAL; 
-                                createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); 
+                                energyCrystals.splice(crystalIndex, 1); // Remove the crystal
+                                energy += ENERGY_PER_CRYSTAL; // Grant energy
+                                createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); // Harvest effect
                                 console.log(`Energy increased to ${energy}`);
                             } else {
                                 console.warn("Harvested crystal not found?");
@@ -584,9 +586,8 @@
                             this.pathIndex = 0;
 
                             this.targetCrystal = null; // Clear target crystal reference
-                            updateUI(); 
-                            updateBuildButtons(); 
-                            checkBuildQueue(this); 
+                            updateUI(); // Update energy count and buttons
+                            checkBuildQueue(this); // Check queue immediately
                         }
                     } 
                     // No automatic task seeking in idle state anymore
@@ -830,7 +831,8 @@
                     let bonus = EARLY_CALL_BONUS_BASE + globalWaveCounter * 3; 
                     energy += bonus; // Gain Energy
                     showMessage(`Early Wave Bonus: +${bonus} Energy!`, "success", 1500);
-                }
+                    updateUI(); // Update UI immediately after bonus
+                 }
 
                 currentWaveInStage++;
                 globalWaveCounter++; // Increment global counter
@@ -1080,6 +1082,9 @@
                 castleLevelDisplay.textContent = castleLevel; 
                 upgradeCastleCostDisplay.textContent = (castleLevel < CASTLE_MAX_LEVEL) ? `⚡${castleUpgradeCost}` : "MAX"; // Use Energy symbol
                 upgradeWorkerCostDisplay.textContent = (workerLevel < WORKER_MAX_LEVEL) ? `⚡${workerUpgradeCost}` : "MAX"; // Update worker upgrade cost
+                
+                // Call updateBuildButtons whenever UI is updated to reflect energy changes
+                updateBuildButtons(); 
             } 
             function updateBottomStatsPanel(){if(selectedTower){bottomStatsPanel.classList.remove('hidden');statsTowerType.textContent=selectedTower.towerTypeData.name;statsTowerLevel.textContent=selectedTower.level+1;statsTowerHealth.textContent=`${selectedTower.health.toFixed(0)}/${selectedTower.maxHealth.toFixed(0)}`;statsTowerDamage.textContent=selectedTower.damage.toFixed(1);statsTowerRange.textContent=selectedTower.range;statsTowerFireRate.textContent=(60/selectedTower.fireRate).toFixed(2)+"/s";statsUpgradeCost.textContent=(selectedTower.level<selectedTower.towerTypeData.levels.length-1)?`⚡${selectedTower.upgradeCost}`:"MAX";statsSellPrice.textContent=`⚡${selectedTower.getSellValue()}`;}else{bottomStatsPanel.classList.add('hidden');}} // Use Energy symbol
             
@@ -1479,68 +1484,108 @@
                 }
             });
 
-
-            canvas.addEventListener('click',(event)=>{
-                const rect=canvas.getBoundingClientRect();
-                const mouseX=event.clientX-rect.left;
-                const mouseY=event.clientY-rect.top;
+            // Consolidated Click/Tap Handler
+            function handleCanvasInteraction(clientX, clientY) {
+                 const rect=canvas.getBoundingClientRect();
+                 const mouseX=clientX-rect.left;
+                 const mouseY=clientY-rect.top;
                 
-                if(placingItemInfo) {
-                    handleItemPlacement(mouseX,mouseY);
-                    selectedCrystal = null; // Deselect crystal when placing item
-                } else {
-                    let clickedOnAction = false;
-                    // Tower Actions
-                    if (selectedTower) {
-                        const upgradeIconX=selectedTower.pixelX+UPGRADE_ICON_OFFSET_X; const upgradeIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
-                        if(getDistance({x:mouseX,y:mouseY},{x:upgradeIconX,y:upgradeIconY})<=TOWER_ACTION_ICON_RADIUS){handleUpgradeRequest(selectedTower);clickedOnAction=true;}
-                        const sellIconX=selectedTower.pixelX+SELL_ICON_OFFSET_X; const sellIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
-                        if(!clickedOnAction&&getDistance({x:mouseX,y:mouseY},{x:sellIconX,y:sellIconY})<=TOWER_ACTION_ICON_RADIUS){const sellValue=selectedTower.getSellValue();energy+=sellValue;selectedTower.destroy();updateUI();showMessage(`Tower sold for ⚡${sellValue}`,"success");clickedOnAction=true;} // Energy symbol
-                    }
-                    // Crystal Action
-                    if (selectedCrystal && !clickedOnAction) {
-                         const crystalPixelX = selectedCrystal.x * TILE_SIZE + TILE_SIZE / 2;
-                         const crystalPixelY = selectedCrystal.y * TILE_SIZE + TILE_SIZE / 2;
-                         const harvestIconX = crystalPixelX + HARVEST_ICON_OFFSET_X;
-                         const harvestIconY = crystalPixelY + HARVEST_ICON_OFFSET_Y;
-                         if (getDistance({x:mouseX, y:mouseY}, {x: harvestIconX, y: harvestIconY}) <= TOWER_ACTION_ICON_RADIUS) {
-                             handleHarvestRequest(selectedCrystal);
-                             clickedOnAction = true;
-                         }
-                    }
+                 if(placingItemInfo) {
+                     handleItemPlacement(mouseX,mouseY);
+                     selectedCrystal = null; // Deselect crystal when placing item
+                 } else {
+                     let clickedOnAction = false;
+                     // Tower Actions
+                     if (selectedTower) {
+                         const upgradeIconX=selectedTower.pixelX+UPGRADE_ICON_OFFSET_X; const upgradeIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
+                         if(getDistance({x:mouseX,y:mouseY},{x:upgradeIconX,y:upgradeIconY})<=TOWER_ACTION_ICON_RADIUS){handleUpgradeRequest(selectedTower);clickedOnAction=true;}
+                         const sellIconX=selectedTower.pixelX+SELL_ICON_OFFSET_X; const sellIconY=selectedTower.pixelY+TOWER_ACTION_ICON_OFFSET_Y;
+                         if(!clickedOnAction&&getDistance({x:mouseX,y:mouseY},{x:sellIconX,y:sellIconY})<=TOWER_ACTION_ICON_RADIUS){const sellValue=selectedTower.getSellValue();energy+=sellValue;selectedTower.destroy();updateUI();showMessage(`Tower sold for ⚡${sellValue}`,"success");clickedOnAction=true;} // Energy symbol
+                     }
+                     // Crystal Action
+                     if (selectedCrystal && !clickedOnAction) {
+                          const crystalPixelX = selectedCrystal.x * TILE_SIZE + TILE_SIZE / 2;
+                          const crystalPixelY = selectedCrystal.y * TILE_SIZE + TILE_SIZE / 2;
+                          const harvestIconX = crystalPixelX + HARVEST_ICON_OFFSET_X;
+                          const harvestIconY = crystalPixelY + HARVEST_ICON_OFFSET_Y;
+                          if (getDistance({x:mouseX, y:mouseY}, {x: harvestIconX, y: harvestIconY}) <= TOWER_ACTION_ICON_RADIUS) {
+                              handleHarvestRequest(selectedCrystal);
+                              clickedOnAction = true;
+                          }
+                     }
 
-                    if(!clickedOnAction){
-                        let clickedOnTowerObject=false;
-                        for(const tower of towers){if(mouseX>=tower.pixelX-tower.size/2&&mouseX<=tower.pixelX+tower.size/2&&mouseY>=tower.pixelY-tower.size/2&&mouseY<=tower.pixelY+tower.size/2){selectedTower=tower;selectedCrystal=null;clickedOnTowerObject=true;break;}}
+                     if(!clickedOnAction){
+                         let clickedOnTowerObject=false;
+                         for(const tower of towers){if(mouseX>=tower.pixelX-tower.size/2&&mouseX<=tower.pixelX+tower.size/2&&mouseY>=tower.pixelY-tower.size/2&&mouseY<=tower.pixelY+tower.size/2){selectedTower=tower;selectedCrystal=null;clickedOnTowerObject=true;break;}}
                         
-                        let clickedOnCrystalObject = false;
-                        if (!clickedOnTowerObject) {
-                             for (const crystal of energyCrystals) { // Use energyCrystals
-                                const crystalX = crystal.x * TILE_SIZE;
-                                const crystalY = crystal.y * TILE_SIZE;
-                                // Check if clicking within the crystal's tile area
-                                if (mouseX >= crystalX && mouseX <= crystalX + TILE_SIZE && mouseY >= crystalY && mouseY <= crystalY + TILE_SIZE) {
-                                    // Only select if not already assigned to a worker
-                                    if (crystal.assignedWorkerId === null) {
-                                        selectedCrystal = crystal;
-                                        selectedTower = null;
-                                        clickedOnCrystalObject = true;
-                                    } else {
-                                        showMessage("Crystal is being harvested.", "info");
-                                    }
-                                    break; 
-                                }
-                            }
-                        }
+                         let clickedOnCrystalObject = false;
+                         if (!clickedOnTowerObject) {
+                              for (const crystal of energyCrystals) { // Use energyCrystals
+                                 const crystalX = crystal.x * TILE_SIZE;
+                                 const crystalY = crystal.y * TILE_SIZE;
+                                 // Check if clicking within the crystal's tile area
+                                 if (mouseX >= crystalX && mouseX <= crystalX + TILE_SIZE && mouseY >= crystalY && mouseY <= crystalY + TILE_SIZE) {
+                                     // Only select if not already assigned to a worker
+                                     if (crystal.assignedWorkerId === null) {
+                                         selectedCrystal = crystal;
+                                         selectedTower = null;
+                                         clickedOnCrystalObject = true;
+                                     } else {
+                                         showMessage("Crystal is being harvested.", "info");
+                                     }
+                                     break; 
+                                 }
+                             }
+                         }
 
-                        if(!clickedOnTowerObject && !clickedOnCrystalObject) { // Clicked empty space
-                            selectedTower=null;
-                            selectedCrystal = null;
-                        }
-                    }
-                    updateBottomStatsPanel();
-                }
+                         if(!clickedOnTowerObject && !clickedOnCrystalObject) { // Clicked empty space
+                             selectedTower=null;
+                             selectedCrystal = null;
+                         }
+                     }
+                     updateBottomStatsPanel();
+                 }
+            }
+            
+            // Mouse Click Listener
+            canvas.addEventListener('click',(event)=>{
+                handleCanvasInteraction(event.clientX, event.clientY);
             });
+
+            // Touch Listeners
+            canvas.addEventListener('touchstart', (event) => {
+                 event.preventDefault(); // Prevent default scroll/zoom
+                 if (event.touches.length === 1) { // Handle single touch
+                     const touch = event.touches[0];
+                     if (placingItemInfo) {
+                         // Update position for initial touch placement preview
+                         const rect = canvas.getBoundingClientRect();
+                         placingItemInfo.mouseX = touch.clientX - rect.left;
+                         placingItemInfo.mouseY = touch.clientY - rect.top;
+                     }
+                 }
+            }, { passive: false }); // Need passive: false to allow preventDefault
+
+            canvas.addEventListener('touchmove', (event) => {
+                 event.preventDefault(); // Prevent scrolling while dragging
+                 if (placingItemInfo && event.touches.length === 1) {
+                     const touch = event.touches[0];
+                     const rect = canvas.getBoundingClientRect();
+                     placingItemInfo.mouseX = touch.clientX - rect.left;
+                     placingItemInfo.mouseY = touch.clientY - rect.top;
+                 }
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', (event) => {
+                 // event.preventDefault(); // Usually not needed for touchend, but can prevent unwanted clicks after drag
+                 if (event.changedTouches.length === 1) {
+                     const touch = event.changedTouches[0];
+                     // Use the consolidated handler for the logic
+                     handleCanvasInteraction(touch.clientX, touch.clientY);
+                 }
+            });
+
+
             canvas.addEventListener('mousemove',(event)=>{if(placingItemInfo){const rect=canvas.getBoundingClientRect();placingItemInfo.mouseX=event.clientX-rect.left;placingItemInfo.mouseY=event.clientY-rect.top;}});
             window.addEventListener('keydown',(event)=>{if(event.key==="Escape"){if(placingItemInfo){placingItemInfo=null;canvas.style.cursor='default';showMessage("Placement cancelled.","info");}else if(selectedTower){selectedTower=null;updateBottomStatsPanel();} else if (selectedCrystal) { selectedCrystal = null; } }});
             function getDistance(obj1,obj2){const dx=obj1.x-obj2.x;const dy=obj1.y-obj2.y;return Math.sqrt(dx*dx+dy*dy);}
