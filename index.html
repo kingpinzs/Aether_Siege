@@ -491,7 +491,7 @@
                         constructionSite.workerId = this.id; 
                         this.targetCrystal = null; 
                         updateUI(); 
-                        updateBuildButtons();
+                        // updateBuildButtons(); // Called within updateUI
                         return true; 
                     }
                     console.log(`Worker ${this.id} could not be assigned task (state: ${this.state})`);
@@ -513,7 +513,7 @@
                         this.constructionSiteId = null; 
                         crystal.assignedWorkerId = this.id; 
                         updateUI();
-                        updateBuildButtons(); // Worker is now busy (logically)
+                        // updateBuildButtons(); // Called within updateUI
                         return true;
                     }
                      console.log(`Worker ${this.id} could not be assigned harvest task (state: ${this.state})`);
@@ -568,10 +568,10 @@
                             const crystalIndex = energyCrystals.findIndex(c => c === crystalRef); // Find by reference
                             
                             if (crystalIndex > -1) {
-                                energyCrystals.splice(crystalIndex, 1); // Remove the crystal
                                 energy += ENERGY_PER_CRYSTAL; // Grant energy
                                 createImpactEffect(this.pixelX, this.pixelY, 'cyan', 5, 8); // Harvest effect
                                 console.log(`Energy increased to ${energy}`);
+                                energyCrystals.splice(crystalIndex, 1); // Remove the crystal
                             } else {
                                 console.warn("Harvested crystal not found?");
                             }
@@ -746,7 +746,7 @@
                      });
 
                     updateUI();
-                    updateBuildButtons();
+                    // updateBuildButtons(); // Called within updateUI
                     showMessage("Upgrade Queued!", "info");
                  
                     // Attempt to assign a worker immediately if one is available
@@ -1020,7 +1020,7 @@
                              worker.pathIndex = 0;
                              worker.constructionSiteId = null; 
                              updateUI(); 
-                             updateBuildButtons();
+                             // updateBuildButtons(); // Called within updateUI
 
                              // Check build queue immediately after finishing a task
                              checkBuildQueue(worker); 
@@ -1036,28 +1036,58 @@
 
             // Function to check and assign tasks from the queue
             function checkBuildQueue(worker) {
+                 if (!worker) {
+                    console.error("checkBuildQueue called without a worker!");
+                    return;
+                 }
+                 console.log(`Worker ${worker.id} finished task, checking queue. Current state: ${worker.state}. Queue length: ${buildQueue.length}`); // Log entry
                 if (buildQueue.length > 0) {
                     const nextTask = buildQueue.shift(); // Get the first task
-                    
-                    // Create a new construction site object for the queued task
-                    const siteId = `${nextTask.type}-${nextTask.tileX}-${nextTask.tileY}-${Date.now()}`;
-                    const newSite = {
-                        id: siteId,
-                        tileX: nextTask.tileX,
-                        tileY: nextTask.tileY,
-                        endTime: null, // Will be set when worker arrives
-                        itemData: nextTask.itemData,
-                        isUpgrade: nextTask.type === 'upgrade',
-                        workerId: null
-                    };
-                    constructionSites.push(newSite);
+                    console.log(`Dequeued task: ${nextTask.type} at ${nextTask.tileX},${nextTask.tileY}`);
 
-                    // Assign the worker (this will interrupt the 'returning' state if applicable)
-                    worker.assignTask(newSite); 
-                    // showMessage("Worker assigned next task from queue!", "info", 1000); // Maybe too noisy
+                    if (nextTask.type === 'harvest') {
+                         // Find the crystal again to ensure it still exists and is unassigned
+                         const crystal = energyCrystals.find(c => c.x === nextTask.crystal.x && c.y === nextTask.crystal.y);
+                         if (crystal && crystal.assignedWorkerId === null) {
+                             const assigned = worker.assignHarvestTask(crystal);
+                             if (!assigned) {
+                                 console.error(`Failed to assign queued harvest task to worker ${worker.id}. Re-queuing.`);
+                                 buildQueue.unshift(nextTask); // Add back to front
+                             }
+                         } else {
+                              console.log("Queued harvest target is gone or assigned, skipping.");
+                              checkBuildQueue(worker); // Check for the next task immediately
+                         }
+                    } else { // Build or Upgrade task
+                        // Create a new construction site object for the queued task
+                        const siteId = `${nextTask.type}-${nextTask.tileX}-${nextTask.tileY}-${Date.now()}`;
+                        const newSite = {
+                            id: siteId,
+                            tileX: nextTask.tileX,
+                            tileY: nextTask.tileY,
+                            endTime: null, // Will be set when worker arrives
+                            itemData: nextTask.itemData,
+                            isUpgrade: nextTask.type === 'upgrade',
+                            workerId: null // Worker will be assigned below
+                        };
+                        constructionSites.push(newSite);
+
+                        // Assign the worker (this should interrupt the 'returning' state if applicable)
+                        const assigned = worker.assignTask(newSite); 
+                        if(assigned) {
+                            // showMessage("Worker assigned next task from queue!", "info", 1000); // Maybe too noisy
+                            console.log(`Worker ${worker.id} successfully assigned task from queue. New state: ${worker.state}`);
+                        } else {
+                             console.error(`Failed to assign queued build/upgrade task to worker ${worker.id}. Re-queuing.`);
+                             buildQueue.unshift(nextTask); // Add back to front
+                             constructionSites.pop(); // Remove the prematurely added site
+                        }
+                    }
+                } else {
+                     console.log(`Worker ${worker.id} found build queue empty.`);
+                     // If queue is empty, worker starts returning (or stays idle if already home)
+                     // No automatic harvesting check here anymore
                 }
-                // If queue is empty, worker starts returning (or stays idle if already home)
-                 // No automatic harvesting check here anymore
             }
 
 
@@ -1199,7 +1229,7 @@
                          ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
 
                          // Draw Harvest Icon (H) only if crystal is not assigned
-                         if (crystal.assignedWorkerId === null) {
+                         if (crystal.assignedWorkerId === null && !buildQueue.some(task => task.type === 'harvest' && task.crystal === crystal)) {
                              const iconX = x + TILE_SIZE / 2 + HARVEST_ICON_OFFSET_X;
                              const iconY = y + HARVEST_ICON_OFFSET_Y;
                              ctx.fillStyle = 'rgba(0, 255, 100, 0.8)'; // Greenish harvest icon
@@ -1212,6 +1242,12 @@
                     } else if (crystal.assignedWorkerId !== null) { // Indicate assigned even if not selected
                         ctx.fillStyle = 'rgba(255, 165, 0, 0.5)'; // Orange overlay if assigned
                         ctx.fillRect(x + offsetX, y + offsetY, crystalSize, crystalSize);
+                    } else if (buildQueue.some(task => task.type === 'harvest' && task.crystal === crystal)) { // Indicate queued
+                         const qx = x + TILE_SIZE / 2;
+                         const qy = y + TILE_SIZE / 2;
+                         ctx.fillStyle = "rgba(0, 100, 255, 0.7)"; // Blue 'Q' for queue
+                         ctx.font = "12px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                         ctx.fillText("Q", qx, qy);
                     }
                 });
             }
@@ -1238,14 +1274,16 @@
                 });
                 // Draw queued sites (only if not already an active construction site)
                  buildQueue.forEach(task => {
-                    const isActiveSite = constructionSites.some(site => site.tileX === task.tileX && site.tileY === task.tileY);
-                    if (!isActiveSite) {
-                        const x = task.tileX * TILE_SIZE; const y = task.tileY * TILE_SIZE;
-                        ctx.fillStyle = "rgba(100, 100, 100, 0.3)"; // Slightly different shade/alpha for queue
-                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-                        ctx.fillStyle = "rgba(0, 100, 255, 0.7)"; // Blue 'Q' for queue
-                        ctx.font = "12px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                        ctx.fillText("Q", x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                     if (task.type !== 'harvest') { // Only draw build/upgrade queues here
+                        const isActiveSite = constructionSites.some(site => site.tileX === task.tileX && site.tileY === task.tileY);
+                        if (!isActiveSite) {
+                            const x = task.tileX * TILE_SIZE; const y = task.tileY * TILE_SIZE;
+                            ctx.fillStyle = "rgba(100, 100, 100, 0.3)"; // Slightly different shade/alpha for queue
+                            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                            ctx.fillStyle = "rgba(0, 100, 255, 0.7)"; // Blue 'Q' for queue
+                            ctx.font = "12px 'Press Start 2P'"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                            ctx.fillText("Q", x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                        }
                     }
                 });
             }
@@ -1273,7 +1311,7 @@
                     });
 
                     updateUI();
-                    updateBuildButtons(); 
+                    // updateBuildButtons(); // Called within updateUI
                     showMessage("Build Queued!", "info"); 
 
                     // Attempt to assign a worker immediately if one is available
@@ -1295,7 +1333,6 @@
                  }
 
                  energy -= tower.upgradeCost; // Use energy
-                 // Don't increment totalInvested or level here, do it when upgrade completes
                  
                  // Add to build queue
                  buildQueue.push({ 
@@ -1306,7 +1343,7 @@
                  });
 
                  updateUI();
-                 updateBuildButtons();
+                 // updateBuildButtons(); // Called within updateUI
                  showMessage("Upgrade Queued!", "info");
                  
                  // Attempt to assign a worker immediately if one is available
@@ -1338,7 +1375,7 @@
                 }
 
                 updateUI();
-                updateBuildButtons(); // Update button state/cost
+                // updateBuildButtons(); // Called within updateUI
             }
             
             function handleWorkerUpgradeRequest() {
@@ -1357,7 +1394,7 @@
                  workerUpgradeCost = Math.floor(workerUpgradeCost * 2.5); // Increase cost significantly
 
                  updateUI();
-                 updateBuildButtons();
+                 // updateBuildButtons(); // Called within updateUI
                  showMessage(`Workers upgraded to Level ${workerLevel}!`, "success");
             }
 
@@ -1595,17 +1632,28 @@
                      console.log("Crystal invalid or already assigned");
                      return; // Already being harvested or invalid
                  }
+                 // Check if already queued
+                  if (buildQueue.some(task => task.type === 'harvest' && task.crystal === crystal)) {
+                     showMessage("Harvest already queued for this crystal!", "info");
+                     selectedCrystal = null; // Deselect
+                     return;
+                 }
+
 
                  const availableWorker = workers.find(w => w.state === 'idle' || w.state === 'returning');
                  if (!availableWorker) {
-                     showMessage("No worker available to harvest!", "error");
-                     return;
+                     // Queue the harvest task
+                     buildQueue.push({ type: 'harvest', crystal: crystal, tileX: crystal.x, tileY: crystal.y }); // Store coords too
+                     showMessage("Harvest Queued!", "info");
+                     console.log(`Harvest task queued for crystal at ${crystal.x},${crystal.y}`);
+                     updateUI(); // Update visuals if needed (e.g., queue indicator)
+                 } else {
+                     // Assign immediately
+                     console.log(`Assigning worker ${availableWorker.id} to harvest crystal at ${crystal.x},${crystal.y}`);
+                     availableWorker.assignHarvestTask(crystal);
+                     showMessage("Worker dispatched to harvest!", "info");
                  }
-                 
-                 console.log(`Assigning worker ${availableWorker.id} to harvest crystal at ${crystal.x},${crystal.y}`);
-                 availableWorker.assignHarvestTask(crystal);
-                 showMessage("Worker dispatched to harvest!", "info");
-                 selectedCrystal = null; // Deselect after assigning task
+                 selectedCrystal = null; // Deselect after assigning or queueing
              }
 
 
